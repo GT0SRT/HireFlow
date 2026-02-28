@@ -133,4 +133,9 @@
   .section-light {
     background-color: #fcfcfc;
   }
+  .glass {
+  @apply rounded-lg border border-border shadow-sm;
+  background-color: hsl(var(--card) / 0.85); /* cleaner, less transparent */
+  backdrop-filter: blur(10px);
+  }
 }

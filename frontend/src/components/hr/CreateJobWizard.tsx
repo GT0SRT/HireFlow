@@ -115,9 +115,7 @@ export default function CreateJobWizard({ onClose }: CreateJobWizardProps) {
             </p>
           </div>
 
-          <button
-            type="button"
-            onClick={onClose}
+          <button type="button" onClick={onClose}
             className="p-2 rounded-lg hover:bg-muted transition-colors"
           >
             <X className="h-5 w-5" />

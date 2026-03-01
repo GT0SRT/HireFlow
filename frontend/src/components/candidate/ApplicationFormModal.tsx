@@ -5,7 +5,23 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useState } from "react";
 
-export default function ApplicationFormModal({ open, onClose, job }) {
+/* -------------------------------------------
+   🟢 Define Props Interface (Fixes Red Underlines)
+-------------------------------------------- */
+interface ApplicationFormModalProps {
+  open: boolean;
+  onClose: () => void;
+  job: {
+    title: string;
+    [key: string]: any; // allows extra fields
+  } | null;
+}
+
+export default function ApplicationFormModal({
+  open,
+  onClose,
+  job,
+}: ApplicationFormModalProps) {
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
@@ -18,11 +34,22 @@ export default function ApplicationFormModal({ open, onClose, job }) {
 
   if (!job) return null;
 
-  const handleChange = (e) => {
-    const { name, value, files } = e.target;
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+
+    // For file upload
+    if ((e.target as HTMLInputElement).files) {
+      const { files } = e.target as HTMLInputElement;
+      setFormData({
+        ...formData,
+        [name]: files ? files[0] : null,
+      });
+      return;
+    }
+
     setFormData({
       ...formData,
-      [name]: files ? files[0] : value,
+      [name]: value,
     });
   };
 
@@ -36,7 +63,7 @@ export default function ApplicationFormModal({ open, onClose, job }) {
       <DialogContent
         className="max-w-2xl max-h-[85vh] overflow-y-auto p-0 rounded-xl"
       >
-        {/* Sticky Header (NO COLLISION) */}
+        {/* Sticky Header */}
         <DialogHeader
           className="sticky top-0 bg-background z-20 px-8 py-4 border-b border-white/10 shadow-sm"
         >
@@ -47,7 +74,8 @@ export default function ApplicationFormModal({ open, onClose, job }) {
 
         {/* Scrollable Body */}
         <div className="px-8 py-6 space-y-10">
-            {/* SECTION : Resume */}
+
+          {/* SECTION : Resume */}
           <div>
             <h2 className="text-lg font-medium mb-4">Resume</h2>
 
@@ -141,6 +169,7 @@ export default function ApplicationFormModal({ open, onClose, job }) {
           <Button className="w-full h-12 text-base" onClick={handleSubmit}>
             Submit Application
           </Button>
+
         </div>
       </DialogContent>
     </Dialog>

@@ -4,7 +4,18 @@ import { Badge } from "@/components/ui/badge";
 import { useState } from "react";
 import ApplicationFormModal from "@/components/candidate/ApplicationFormModal";
 
-const jobs = [
+type Job = {
+  id: number;
+  title: string;
+  company: string;
+  location: string;
+  type: string;
+  salary: string;
+  skills: string[];
+  posted: string;
+};
+
+const jobs: Job[] = [
   { id: 1, title: "Senior Frontend Developer", company: "TechCorp", location: "Remote", type: "Full-time", salary: "$120k-$160k", skills: ["React", "TypeScript", "Tailwind"], posted: "2 days ago" },
   { id: 2, title: "ML Engineer", company: "DataFlow AI", location: "San Francisco, CA", type: "Full-time", salary: "$140k-$180k", skills: ["Python", "PyTorch", "MLOps"], posted: "1 day ago" },
   { id: 3, title: "Product Designer", company: "DesignHub", location: "Remote", type: "Contract", salary: "$90k-$120k", skills: ["Figma", "UX Research", "Prototyping"], posted: "5 days ago" },
@@ -14,10 +25,10 @@ const jobs = [
 ];
 
 export default function JobBoard() {
-  const [selectedJob, setSelectedJob] = useState(null);
+  const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const handleApplyClick = (job) => {
+  const handleApplyClick = (job: Job) => {
     setSelectedJob(job);
     setIsModalOpen(true);
   };

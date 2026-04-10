@@ -1,31 +1,30 @@
 const express = require("express");
+const dotenv = require("dotenv");
+const cors = require("cors");
+const cookieParser = require("cookie-parser");
+const connectDB = require("./config/db");
+
+dotenv.config();
+connectDB();
 
 const app = express();
-const PORT = process.env.PORT || 3000;
 
+// Middleware
+app.use(cors({
+  origin: "http://localhost:5173",
+  credentials: true,
+}));
 app.use(express.json());
+app.use(cookieParser());
 
-app.get("/", (req, res) => {
-    res.json({ message: "Backend API is running" });
-});
+// Routes
+app.use("/api/auth", require("./routes/authRoutes"));
+app.use("/api/jobs", require("./routes/jobRoutes"));
+app.use("/api/applications", require("./routes/applicationRoutes"));
 
-app.get("/health", (req, res) => {
-    res.json({ status: "ok" });
-});
+// Health check
+app.get("/", (req, res) => res.json({ message: "HireFlow API running" }));
 
-app.post("/api/v1/echo", (req, res) => {
-    const { text = "" } = req.body || {};
-    res.json({
-        received: true,
-        length: String(text).length,
-        preview: String(text).slice(0, 120),
-    });
-});
 
-app.use((req, res) => {
-    res.status(404).json({ error: "Route not found" });
-});
-
-app.listen(PORT, () => {
-    console.log(`Backend server listening on port ${PORT}`);
-});
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

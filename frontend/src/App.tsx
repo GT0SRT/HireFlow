@@ -15,33 +15,54 @@ import HRLayout from "./components/HRLayout";
 import Dashboard from "./pages/hr/Dashboard";
 import JobDetail from "./pages/hr/JobDetail";
 import NotFound from "./pages/NotFound";
+import { AuthProvider } from "@/context/AuthContext";
+import ProtectedRoute from "@/components/ProtectedRoute";
 
 const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/signup" element={<Signup />} />
-            <Route path="/candidate" element={<CandidateLayout />}>
-              <Route path="jobs" element={<JobBoard />} />
-              <Route path="applications" element={<MyApplications />} />
-              <Route path="profile" element={<Profile />} />
-            </Route>
-            <Route path="/hr" element={<HRLayout />}>
-              <Route path="dashboard" element={<Dashboard />} />
-              <Route path="jobs/:jobId" element={<JobDetail />} />
-            </Route>
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
+      <AuthProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/signup" element={<Signup />} />
+
+              <Route
+                path="/candidate"
+                element={
+                  <ProtectedRoute allowedRole="candidate">
+                    <CandidateLayout />
+                  </ProtectedRoute>
+                }
+              >
+                <Route path="jobs" element={<JobBoard />} />
+                <Route path="applications" element={<MyApplications />} />
+                <Route path="profile" element={<Profile />} />
+              </Route>
+
+              <Route
+                path="/hr"
+                element={
+                  <ProtectedRoute allowedRole="hr">
+                    <HRLayout />
+                  </ProtectedRoute>
+                }
+              >
+                <Route path="dashboard" element={<Dashboard />} />
+                <Route path="jobs/:jobId" element={<JobDetail />} />
+              </Route>
+
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+        </TooltipProvider>
+      </AuthProvider>
     </ThemeProvider>
   </QueryClientProvider>
 );

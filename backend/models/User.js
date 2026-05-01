@@ -16,6 +16,13 @@ const userSchema = new mongoose.Schema(
     skills: [{ type: String }],
     // HR-specific fields
     company: { type: String },
+    companyProfile: {
+      website: { type: String },
+      location: { type: String },
+      industry: { type: String },
+      about: { type: String },
+      hiringEmail: { type: String },
+    },
     // Token for refresh
     refreshToken: { type: String },
   },

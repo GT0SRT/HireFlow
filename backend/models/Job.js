@@ -14,6 +14,11 @@ const jobSchema = new mongoose.Schema(
     salary: {
       min: { type: Number },
       max: { type: Number },
+      currency: {
+        type: String,
+        enum: ["INR", "USD", "EUR", "GBP", "AED"],
+        default: "INR",
+      },
     },
     skills: [{ type: String }],
     postedBy: {

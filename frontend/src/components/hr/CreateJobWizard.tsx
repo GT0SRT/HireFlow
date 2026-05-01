@@ -1,12 +1,11 @@
 import { useState } from "react";
-import type { ChangeEvent } from "react";
-import { X, ChevronLeft, ChevronRight, Plus, Trash2 } from "lucide-react";
+import type { ChangeEvent, Dispatch, SetStateAction } from "react";
+import { X, ChevronLeft, ChevronRight, Plus, Trash2, Wand2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -14,9 +13,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { AutocompleteInput } from "@/components/ui/autocomplete-input";
 import { toast } from "sonner";
+import api from "@/api/api";
+import keywordsData from "@/lib/keywords.json";
+import { generateJobDescription } from "@/lib/ai-service";
 
-const STEPS = ["Job Details", "Assessments", "Interviews", "Documents", "Team Allocation"];
+const STEPS = ["Job Details", "Assessments", "Interviews"];
 
 interface Assessment {
   title: string;
@@ -34,21 +37,36 @@ interface Interview {
   meetingLink: string;
 }
 
-interface StepDocumentsProps {
-  docs: Record<string, boolean>;
-  setDocs: (docs: Record<string, boolean>) => void;
-  options: string[];
-}
-
 interface CreateJobWizardProps {
   onClose: () => void;
+}
+
+interface JobFormData {
+  title: string;
+  description: string;
+  location: string;
+  type: "Full-time" | "Part-time" | "Contract" | "Internship";
+  skills: string;
+  salaryMin: string;
+  salaryMax: string;
+  salaryCurrency: string;
 }
 
 export default function CreateJobWizard({ onClose }: CreateJobWizardProps) {
   const [step, setStep] = useState(0);
   const [assessments, setAssessments] = useState<Assessment[]>([]);
   const [interviews, setInterviews] = useState<Interview[]>([]);
-  const [docs, setDocs] = useState<Record<string, boolean>>({});
+  const [publishing, setPublishing] = useState(false);
+  const [jobForm, setJobForm] = useState<JobFormData>({
+    title: "",
+    description: "",
+    location: "",
+    type: "Full-time",
+    skills: "",
+    salaryMin: "",
+    salaryMax: "",
+    salaryCurrency: "INR",
+  });
 
   const addAssessment = () =>
     setAssessments((p) => [
@@ -88,19 +106,48 @@ export default function CreateJobWizard({ onClose }: CreateJobWizardProps) {
     );
   };
 
-  const docOptions = [
-    "Aadhaar Card",
-    "PAN Card",
-    "10th Marksheet",
-    "12th Marksheet",
-    "Degree Certificate",
-    "Experience Letter",
-    "Passport",
-  ];
+  const handlePublish = async () => {
+    if (!jobForm.title.trim() || !jobForm.description.trim() || !jobForm.location.trim()) {
+      toast.error("Please fill title, description and location");
+      return;
+    }
 
-  const handlePublish = () => {
-    toast.success("Recruitment published successfully!");
-    onClose();
+    const minSalary = Number(jobForm.salaryMin || 0);
+    const maxSalary = Number(jobForm.salaryMax || 0);
+
+    if (minSalary < 0 || maxSalary < 0 || (maxSalary > 0 && maxSalary < minSalary)) {
+      toast.error("Please enter a valid salary range");
+      return;
+    }
+
+    try {
+      setPublishing(true);
+      await api.post("/jobs", {
+        title: jobForm.title.trim(),
+        description: jobForm.description.trim(),
+        location: jobForm.location.trim(),
+        type: jobForm.type,
+        skills: jobForm.skills
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean),
+        salary: {
+          min: minSalary || undefined,
+          max: maxSalary || undefined,
+          currency: jobForm.salaryCurrency,
+        },
+      });
+
+      toast.success("Job published successfully");
+      onClose();
+    } catch (error: unknown) {
+      const message =
+        (error as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+        "Failed to publish job";
+      toast.error(message);
+    } finally {
+      setPublishing(false);
+    }
   };
 
   return (
@@ -138,7 +185,7 @@ export default function CreateJobWizard({ onClose }: CreateJobWizardProps) {
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6 space-y-5">
-          {step === 0 && <StepJobDetails />}
+          {step === 0 && <StepJobDetails form={jobForm} setForm={setJobForm} jobTitles={keywordsData.jobTitles} skills={keywordsData.skills} />}
           {step === 1 && (
             <StepAssessments
               assessments={assessments}
@@ -155,10 +202,6 @@ export default function CreateJobWizard({ onClose }: CreateJobWizardProps) {
               onUpdate={updateInterview}
             />
           )}
-          {step === 3 && (
-            <StepDocuments docs={docs} setDocs={setDocs} options={docOptions} />
-          )}
-          {step === 4 && <StepTeamAllocation />}
         </div>
 
         {/* Footer */}
@@ -178,8 +221,8 @@ export default function CreateJobWizard({ onClose }: CreateJobWizardProps) {
               <ChevronRight className="h-4 w-4" />
             </Button>
           ) : (
-            <Button onClick={handlePublish} className="glow-primary gap-2">
-              Publish Recruitment
+            <Button onClick={handlePublish} className="glow-primary gap-2" disabled={publishing}>
+              {publishing ? "Publishing..." : "Publish Recruitment"}
             </Button>
           )}
         </div>
@@ -190,78 +233,165 @@ export default function CreateJobWizard({ onClose }: CreateJobWizardProps) {
 
 /* ------------------ Step Components ------------------ */
 
-function StepJobDetails() {
+function StepJobDetails({
+  form,
+  setForm,
+  jobTitles,
+  skills,
+}: {
+  form: JobFormData;
+  setForm: Dispatch<SetStateAction<JobFormData>>;
+  jobTitles: string[];
+  skills: string[];
+}) {
+  const [generatingDescription, setGeneratingDescription] = useState(false);
+
+  const handleGenerateDescription = async () => {
+    if (!form.title.trim()) {
+      toast.error("Please enter a job title first");
+      return;
+    }
+
+    setGeneratingDescription(true);
+    // Simulate API call delay
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    
+    const generated = generateJobDescription(form.title, form.description);
+    setForm((prev) => ({ ...prev, description: generated }));
+    
+    setGeneratingDescription(false);
+    toast.success("Job description generated!");
+  };
   return (
     <div className="space-y-4">
       <div>
         <Label>Job Title</Label>
-        <Input
+        <AutocompleteInput
           placeholder="e.g. Senior Frontend Developer"
-          className="mt-1.5 glass"
+          className="mt-1.5"
+          value={form.title}
+          onChange={(val) => setForm((prev) => ({ ...prev, title: val }))}
+          suggestions={jobTitles}
+          isSingleSelect
         />
       </div>
 
       <div>
-        <Label>Job Description</Label>
+        <div className="flex items-center justify-between mb-1.5">
+          <Label>Job Description</Label>
+          <button
+            type="button"
+            onClick={handleGenerateDescription}
+            disabled={generatingDescription || !form.title.trim()}
+            className="flex items-center gap-1 text-xs px-2 py-1 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Wand2 className="h-3 w-3" />
+            {generatingDescription ? "Generating..." : "AI Generate"}
+          </button>
+        </div>
         <Textarea
-          placeholder="Describe the role..."
+          placeholder="Describe the role... (or click AI Generate to auto-fill)"
           className="mt-1.5 glass"
-          rows={4}
+          rows={6}
+          value={form.description}
+          onChange={(e: ChangeEvent<HTMLTextAreaElement>) =>
+            setForm((prev) => ({ ...prev, description: e.target.value }))
+          }
         />
+        <p className="text-xs text-muted-foreground mt-1">
+          💡 Tip: AI will enhance your description if you provide one, or generate from scratch using just the title
+        </p>
       </div>
 
       <div>
         <Label>Required Skills</Label>
-        <Input
+        <AutocompleteInput
           placeholder="React, TypeScript, Node.js"
-          className="mt-1.5 glass"
+          className="mt-1.5"
+          value={form.skills}
+          onChange={(val) => setForm((prev) => ({ ...prev, skills: val }))}
+          suggestions={skills}
+          isSingleSelect={false}
         />
       </div>
 
       <div>
-        <Label>Requirements</Label>
-        <Textarea
-          placeholder="List the requirements..."
-          className="mt-1.5 glass"
-          rows={3}
-        />
+        <div>
+          <Label>Location</Label>
+          <Input
+            placeholder="e.g. Bengaluru"
+            className="mt-1.5 glass"
+            value={form.location}
+            onChange={(e: ChangeEvent<HTMLInputElement>) =>
+              setForm((prev) => ({ ...prev, location: e.target.value }))
+            }
+          />
+        </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div>
-          <Label>Last Date to Apply</Label>
-          <Input type="date" className="mt-1.5 glass" />
-        </div>
-
-        <div>
-          <Label>Experience Level</Label>
-          <Select>
+          <Label>Employment Type</Label>
+          <Select
+            value={form.type}
+            onValueChange={(v: JobFormData["type"]) => setForm((prev) => ({ ...prev, type: v }))}
+          >
             <SelectTrigger className="mt-1.5 glass">
-              <SelectValue placeholder="Select level" />
+              <SelectValue placeholder="Select type" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="entry">Entry Level</SelectItem>
-              <SelectItem value="mid">Mid Level</SelectItem>
-              <SelectItem value="senior">Senior Level</SelectItem>
-              <SelectItem value="lead">Lead / Principal</SelectItem>
+              <SelectItem value="Full-time">Full-time</SelectItem>
+              <SelectItem value="Part-time">Part-time</SelectItem>
+              <SelectItem value="Contract">Contract</SelectItem>
+              <SelectItem value="Internship">Internship</SelectItem>
             </SelectContent>
           </Select>
         </div>
-      </div>
 
-      <div>
-        <Label>Qualification</Label>
-        <Select>
-          <SelectTrigger className="mt-1.5 glass">
-            <SelectValue placeholder="Select qualification" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="bachelor">Bachelor's Degree</SelectItem>
-            <SelectItem value="master">Master's Degree</SelectItem>
-            <SelectItem value="phd">PhD</SelectItem>
-            <SelectItem value="any">Any</SelectItem>
-          </SelectContent>
-        </Select>
+        <div>
+          <Label>Salary Min</Label>
+          <Input
+            type="number"
+            placeholder="500000"
+            className="mt-1.5 glass"
+            value={form.salaryMin}
+            onChange={(e: ChangeEvent<HTMLInputElement>) =>
+              setForm((prev) => ({ ...prev, salaryMin: e.target.value }))
+            }
+          />
+        </div>
+
+        <div>
+          <Label>Salary Max</Label>
+          <Input
+            type="number"
+            placeholder="1200000"
+            className="mt-1.5 glass"
+            value={form.salaryMax}
+            onChange={(e: ChangeEvent<HTMLInputElement>) =>
+              setForm((prev) => ({ ...prev, salaryMax: e.target.value }))
+            }
+          />
+        </div>
+
+        <div>
+          <Label>Currency</Label>
+          <Select
+            value={form.salaryCurrency}
+            onValueChange={(v) => setForm((prev) => ({ ...prev, salaryCurrency: v }))}
+          >
+            <SelectTrigger className="mt-1.5 glass">
+              <SelectValue placeholder="Select currency" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="INR">INR - Indian Rupee</SelectItem>
+              <SelectItem value="USD">USD - US Dollar</SelectItem>
+              <SelectItem value="EUR">EUR - Euro</SelectItem>
+              <SelectItem value="GBP">GBP - British Pound</SelectItem>
+              <SelectItem value="AED">AED - UAE Dirham</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
     </div>
   );
@@ -483,78 +613,6 @@ function StepInterviews({
         <Plus className="h-4 w-4" />
         Add Interview Round
       </Button>
-    </div>
-  );
-}
-
-/* ---------------- Documents Step ---------------- */
-
-function StepDocuments({ docs, setDocs, options }: StepDocumentsProps) {
-  return (
-    <div className="space-y-4">
-      <p className="text-sm text-muted-foreground">
-        Select which documents are required before extending an offer.
-      </p>
-
-      <div className="glass rounded-xl p-5 space-y-4">
-        {options.map((doc) => (
-          <div key={doc} className="flex items-center gap-3">
-            <Checkbox
-              checked={docs[doc] || false}
-              onCheckedChange={(v: boolean | "indeterminate") =>
-                setDocs({ ...docs, [doc]: !!v })
-              }
-            />
-            <Label className="cursor-pointer">{doc}</Label>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-/* ---------------- Team Allocation Step ---------------- */
-
-function StepTeamAllocation() {
-  return (
-    <div className="space-y-4">
-      <p className="text-sm text-muted-foreground">
-        Assign the successful candidate to a team or project.
-      </p>
-
-      <div>
-        <Label>Team / Project</Label>
-        <Select>
-          <SelectTrigger className="mt-1.5 glass">
-            <SelectValue placeholder="Select team" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="engineering">Engineering</SelectItem>
-            <SelectItem value="product">Product</SelectItem>
-            <SelectItem value="design">Design</SelectItem>
-            <SelectItem value="data">Data Science</SelectItem>
-            <SelectItem value="devops">DevOps</SelectItem>
-            <SelectItem value="marketing">Marketing</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      <div>
-        <Label>Project Name (optional)</Label>
-        <Input
-          placeholder="e.g. Project Phoenix"
-          className="mt-1.5 glass"
-        />
-      </div>
-
-      <div>
-        <Label>Notes</Label>
-        <Textarea
-          placeholder="Any additional notes for onboarding..."
-          className="mt-1.5 glass"
-          rows={3}
-        />
-      </div>
     </div>
   );
 }

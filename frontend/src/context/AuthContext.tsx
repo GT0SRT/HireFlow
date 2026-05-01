@@ -1,4 +1,5 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect } from "react";
+import type { ReactNode } from "react";
 import api from "@/api/api";
 
 
@@ -8,6 +9,13 @@ interface User {
   email: string;
   role: "candidate" | "hr";
   company?: string;
+  companyProfile?: {
+    website?: string;
+    location?: string;
+    industry?: string;
+    about?: string;
+    hiringEmail?: string;
+  };
 }
 
 interface AuthContextType {
@@ -16,6 +24,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   signup: (name: string, email: string, password: string, role: string, company?: string) => Promise<void>;
   logout: () => Promise<void>;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -55,8 +64,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   };
 
+  const refreshUser = async () => {
+    const { data } = await api.get("/auth/me");
+    setUser(data);
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, signup, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, signup, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

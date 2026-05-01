@@ -12,8 +12,8 @@ type Job = {
   company: string;
   location: string;
   type: string;
-  salary: { min: number; max: number };
-  skills: string[];
+  salary?: { min?: number; max?: number };
+  skills?: string[];
   createdAt: string;
 };
 
@@ -74,7 +74,7 @@ export default function JobBoard() {
             <p className="text-sm text-muted-foreground mb-3">{job.company}</p>
 
             <div className="flex flex-wrap gap-2 mb-4">
-              {job.skills.map((s) => (
+              {(job.skills || []).map((s) => (
                 <Badge
                   key={s}
                   variant="outline"
@@ -90,7 +90,10 @@ export default function JobBoard() {
                 <MapPin className="h-3.5 w-3.5" /> {job.location}
               </div>
               <div className="flex items-center gap-2">
-                <DollarSign className="h-3.5 w-3.5" /> ${job.salary.min.toLocaleString()} - ${job.salary.max.toLocaleString()}
+                <DollarSign className="h-3.5 w-3.5" />
+                {typeof job.salary?.min === "number" || typeof job.salary?.max === "number"
+                  ? `$${(job.salary?.min || 0).toLocaleString()} - $${(job.salary?.max || 0).toLocaleString()}`
+                  : "Salary not disclosed"}
               </div>
               <div className="flex items-center gap-2">
                 <Clock className="h-3.5 w-3.5" /> {new Date(job.createdAt).toLocaleDateString()}

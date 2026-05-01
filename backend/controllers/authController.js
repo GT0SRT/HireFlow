@@ -57,6 +57,7 @@ const register = async (req, res) => {
       email: user.email,
       role: user.role,
       company: user.company,
+      companyProfile: user.companyProfile,
       accessToken,
     });
   } catch (error) {
@@ -94,6 +95,7 @@ const login = async (req, res) => {
       email: user.email,
       role: user.role,
       company: user.company,
+      companyProfile: user.companyProfile,
       accessToken,
     });
   } catch (error) {
@@ -163,4 +165,46 @@ const getMe = async (req, res) => {
   res.json(req.user);
 };
 
-module.exports = { register, login, refreshAccessToken, logout, getMe };
+// @PUT /api/auth/me
+const updateMe = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const { name, company, companyProfile } = req.body;
+
+    if (typeof name === "string") user.name = name.trim();
+
+    if (user.role === "hr") {
+      if (typeof company === "string") user.company = company.trim();
+
+      if (companyProfile && typeof companyProfile === "object") {
+        user.companyProfile = {
+          website: companyProfile.website?.trim() || "",
+          location: companyProfile.location?.trim() || "",
+          industry: companyProfile.industry?.trim() || "",
+          about: companyProfile.about?.trim() || "",
+          hiringEmail: companyProfile.hiringEmail?.trim() || "",
+        };
+      }
+    }
+
+    await user.save();
+
+    res.json({
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      company: user.company,
+      companyProfile: user.companyProfile,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+module.exports = { register, login, refreshAccessToken, logout, getMe, updateMe };

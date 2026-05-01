@@ -4,16 +4,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useState } from "react";
+import api from "@/api/api";
+import { toast } from "sonner";
 
-/* -------------------------------------------
-   🟢 Define Props Interface (Fixes Red Underlines)
--------------------------------------------- */
 interface ApplicationFormModalProps {
   open: boolean;
   onClose: () => void;
   job: {
+    _id: string;
     title: string;
-    [key: string]: any; // allows extra fields
+    [key: string]: unknown;
   } | null;
 }
 
@@ -31,6 +31,7 @@ export default function ApplicationFormModal({
     resume: null,
     coverLetter: "",
   });
+  const [submitting, setSubmitting] = useState(false);
 
   if (!job) return null;
 
@@ -53,9 +54,24 @@ export default function ApplicationFormModal({
     });
   };
 
-  const handleSubmit = () => {
-    console.log("Submitted Application →", job.title, formData);
-    onClose();
+  const handleSubmit = async () => {
+    if (!job?._id) return;
+
+    try {
+      setSubmitting(true);
+      await api.post(`/applications/${job._id}`, {
+        coverLetter: formData.coverLetter,
+      });
+      toast.success("Application submitted successfully");
+      onClose();
+    } catch (error: unknown) {
+      const message =
+        (error as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+        "Failed to submit application";
+      toast.error(message);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -94,65 +110,6 @@ export default function ApplicationFormModal({
             </div>
           </div>
 
-          {/* SECTION : Personal Details */}
-          <div>
-            <h2 className="text-lg font-medium mb-4">Personal Details</h2>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label>Full Name</Label>
-                <Input
-                  name="fullName"
-                  placeholder="John Doe"
-                  onChange={handleChange}
-                />
-              </div>
-
-              <div>
-                <Label>Email</Label>
-                <Input
-                  name="email"
-                  placeholder="john@example.com"
-                  onChange={handleChange}
-                />
-              </div>
-
-              <div>
-                <Label>Phone Number</Label>
-                <Input
-                  name="phone"
-                  placeholder="+91 9876543210"
-                  onChange={handleChange}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* SECTION : Professional Links */}
-          <div>
-            <h2 className="text-lg font-medium mb-4">Professional Links</h2>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label>GitHub Profile</Label>
-                <Input
-                  name="github"
-                  placeholder="https://github.com/username"
-                  onChange={handleChange}
-                />
-              </div>
-
-              <div>
-                <Label>LinkedIn Profile</Label>
-                <Input
-                  name="linkedin"
-                  placeholder="https://linkedin.com/in/username"
-                  onChange={handleChange}
-                />
-              </div>
-            </div>
-          </div>
-
           {/* SECTION : Cover Letter */}
           <div>
             <h2 className="text-lg font-medium mb-4">Cover Letter</h2>
@@ -166,8 +123,8 @@ export default function ApplicationFormModal({
           </div>
 
           {/* SUBMIT BUTTON */}
-          <Button className="w-full h-12 text-base" onClick={handleSubmit}>
-            Submit Application
+          <Button className="w-full h-12 text-base" onClick={handleSubmit} disabled={submitting}>
+            {submitting ? "Submitting..." : "Submit Application"}
           </Button>
 
         </div>

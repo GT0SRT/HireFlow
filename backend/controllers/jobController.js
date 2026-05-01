@@ -41,7 +41,11 @@ const createJob = async (req, res) => {
       description,
       location,
       type,
-      salary,
+      salary: {
+        min: salary?.min,
+        max: salary?.max,
+        currency: salary?.currency || "INR",
+      },
       skills,
       company: req.user.company,
       postedBy: req.user._id,

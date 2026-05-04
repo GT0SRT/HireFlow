@@ -21,6 +21,7 @@ app.use(cookieParser());
 app.use("/api/auth", require("./routes/authRoutes"));
 app.use("/api/jobs", require("./routes/jobRoutes"));
 app.use("/api/applications", require("./routes/applicationRoutes"));
+app.use("/api/profile", require("./routes/profileRoutes"));
 
 // Health check
 app.get("/", (req, res) => res.json({ message: "HireFlow API running" }));

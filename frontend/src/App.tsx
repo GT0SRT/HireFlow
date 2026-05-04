@@ -21,6 +21,7 @@ import HRProfile from "./pages/hr/Profile";
 import NotFound from "./pages/NotFound";
 import { AuthProvider } from "@/context/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import CandidateProfile from "./pages/hr/CandidateProfile";
 
 const queryClient = new QueryClient();
 
@@ -58,6 +59,7 @@ const App = () => (
                   </ProtectedRoute>
                 }
               >
+                <Route path="candidate/:userId" element={<CandidateProfile />} />
                 <Route path="dashboard" element={<Dashboard />} />
                 <Route path="jobs" element={<JobsList />} />
                 <Route path="jobs/ended" element={<EndedJobs />} />

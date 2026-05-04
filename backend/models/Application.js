@@ -14,6 +14,15 @@ const applicationSchema = new mongoose.Schema(
     },
     coverLetter: { type: String },
     resumeUrl: { type: String },
+    resumeAnalysis: { type: mongoose.Schema.Types.Mixed },
+    atsScore: { type: Number },
+    atsThreshold: { type: Number },
+    screeningStatus: {
+      type: String,
+      enum: ["Pending", "Shortlisted", "Not Shortlisted"],
+      default: "Pending",
+    },
+    screeningReason: { type: String },
     status: {
       type: String,
       enum: ["Applied", "Assessment Pending", "Interview Scheduled", "Offered", "Rejected"],

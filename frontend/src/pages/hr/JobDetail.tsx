@@ -12,13 +12,26 @@ type ApplicationStatus =
   | "Interview Scheduled"
   | "Rejected";
 
+export interface JobDescription {
+  primary_role?: string;
+  job_summary?: string;
+  experience_years?: string;
+  mandatory_technical_skills?: string[];
+  nice_to_have_skills?: string[];
+  soft_skills?: string[];
+  key_responsibilities?: string[];
+  requirements?: string[];
+  assessment_plan?: { test_type: string; focus_topics: string[]; suggested_duration_minutes: number }[];
+  interview_plan?: { interview_round: string; focus_topics: string[] }[];
+}
+
 interface JobDetailData {
   _id: string;
   title: string;
   company: string;
   isActive: boolean;
   createdAt: string;
-  description?: string;
+  job_description?: JobDescription;
 }
 
 interface Applicant {
@@ -46,7 +59,12 @@ const DUMMY_JOBS: Record<string, JobDetailData> = {
     company: "Acme Corp",
     isActive: true,
     createdAt: new Date().toISOString(),
-    description: "Build user-facing features with React/TypeScript. Collaborate with design and backend teams.",
+    job_description: {
+      job_summary: "Build user-facing features with React/TypeScript. Collaborate with design and backend teams.",
+      experience_years: "3-5 years",
+      mandatory_technical_skills: ["React", "TypeScript", "Tailwind CSS"],
+      key_responsibilities: ["Develop scalable components", "Mentor juniors"],
+    },
   },
   job2: {
     _id: "job2",
@@ -54,7 +72,17 @@ const DUMMY_JOBS: Record<string, JobDetailData> = {
     company: "Beta Labs",
     isActive: true,
     createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 10).toISOString(),
-    description: "Design and maintain REST APIs, optimize performance, and write tests.",
+    job_description: {
+      job_summary: "Design and maintain REST APIs, optimize performance, and write tests.",
+      experience_years: "2-4 years",
+      mandatory_technical_skills: ["Node.js", "Express", "MongoDB"],
+      assessment_plan: [
+        { test_type: "Coding", focus_topics: ["Node.js Streams"], suggested_duration_minutes: 45 }
+      ],
+      interview_plan: [
+        { interview_round: "Technical", focus_topics: ["System Design"] }
+      ]
+    },
   },
   job3: {
     _id: "job3",
@@ -62,7 +90,9 @@ const DUMMY_JOBS: Record<string, JobDetailData> = {
     company: "Gamma Inc",
     isActive: false,
     createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 40).toISOString(),
-    description: "Write test cases, run manual and automated tests, and report bugs.",
+    job_description: {
+      job_summary: "Write test cases, run manual and automated tests, and report bugs."
+    },
   },
 };
 
@@ -224,13 +254,87 @@ export default function JobDetail() {
             </Button>
           </div>
         </div>
-        {/* Job description dropdown */}
-        <details className="mt-6 glass rounded-xl p-4">
-          <summary className="cursor-pointer font-medium">Job description</summary>
-          <div className="mt-3 text-sm text-muted-foreground">
-            {job.description || DUMMY_JOBS[jobId || ""]?.description || "No description provided."}
+        
+        {/* Job Description Structured View */}
+        {job.job_description ? (
+          <div className="mt-6 glass rounded-xl p-6 space-y-6 text-left">
+            <div>
+              <h3 className="text-xl font-bold mb-2">Job Summary</h3>
+              <p className="text-muted-foreground">{job.job_description.job_summary || "No summary provided."}</p>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <h4 className="font-semibold mb-2">Experience Required</h4>
+                <p className="text-sm text-muted-foreground">{job.job_description.experience_years || "Not specified"}</p>
+              </div>
+              <div>
+                <h4 className="font-semibold mb-2">Mandatory Skills</h4>
+                <div className="flex flex-wrap gap-2">
+                  {job.job_description.mandatory_technical_skills?.map(skill => (
+                    <Badge key={skill} variant="default">{skill}</Badge>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <h4 className="font-semibold mb-2">Key Responsibilities</h4>
+                <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
+                  {job.job_description.key_responsibilities?.map((resp, i) => <li key={i}>{resp}</li>)}
+                </ul>
+              </div>
+              <div>
+                <h4 className="font-semibold mb-2">Requirements</h4>
+                <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
+                  {job.job_description.requirements?.map((req, i) => <li key={i}>{req}</li>)}
+                </ul>
+              </div>
+            </div>
+
+            {/* HR Only - Visible if not stripped by backend */}
+            {(job.job_description.assessment_plan?.length || job.job_description.interview_plan?.length) ? (
+              <div className="mt-6 border-t border-border/50 pt-6">
+                <h3 className="text-lg font-bold mb-4 text-amber-500 flex items-center gap-2">
+                  <Star className="h-5 w-5" /> HR Internal Plans
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {job.job_description.assessment_plan && (
+                    <div className="bg-amber-500/10 p-4 rounded-lg border border-amber-500/20">
+                      <h4 className="font-semibold text-amber-600 mb-2">Assessment Plan</h4>
+                      <ul className="space-y-3">
+                        {job.job_description.assessment_plan.map((test, i) => (
+                          <li key={i} className="text-sm">
+                            <strong>{test.test_type}</strong> ({test.suggested_duration_minutes}m)
+                            <div className="text-muted-foreground mt-1">{test.focus_topics?.join(", ")}</div>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {job.job_description.interview_plan && (
+                    <div className="bg-blue-500/10 p-4 rounded-lg border border-blue-500/20">
+                      <h4 className="font-semibold text-blue-600 mb-2">Interview Plan</h4>
+                      <ul className="space-y-3">
+                        {job.job_description.interview_plan.map((round, i) => (
+                          <li key={i} className="text-sm">
+                            <strong>{round.interview_round}</strong>
+                            <div className="text-muted-foreground mt-1">{round.focus_topics?.join(", ")}</div>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : null}
           </div>
-        </details>
+        ) : (
+          <div className="mt-6 glass rounded-xl p-4 text-center text-muted-foreground">
+            No job description details available.
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-8">

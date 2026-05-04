@@ -1,20 +1,48 @@
 const Job = require("../models/Job");
 
+function _buildTestDescription(jd = {}) {
+  const assessment = jd.assessment_plan || [];
+  const interview = jd.interview_plan || [];
+
+  const assessmentCount = assessment.length;
+  const interviewCount = interview.length;
+
+  const assessmentFocus = (assessment.slice(0, 2).map(s => s.test_type).filter(Boolean).join(', ')) || 'skills-based assessments';
+  const interviewFocus = (interview.slice(0, 2).map(i => i.interview_round).filter(Boolean).join(', ')) || 'one or two interview rounds';
+
+  return `You will go through ${assessmentCount} assessment stage(s) focused on ${assessmentFocus}, followed by ${interviewCount} interview round(s) including ${interviewFocus}. These steps evaluate technical fit, problem-solving, and role alignment.`;
+}
+
 // @GET /api/jobs  — Public: all candidates & HR can view
 const getJobs = async (req, res) => {
   try {
-    const { search, type, location } = req.query;
+    const { search, type, location, page = 1, limit = 10 } = req.query;
     const filter = { isActive: true };
 
     if (search) filter.title = { $regex: search, $options: "i" };
     if (type) filter.type = type;
     if (location) filter.location = { $regex: location, $options: "i" };
 
-    const jobs = await Job.find(filter)
-      .populate("postedBy", "name company")
-      .sort({ createdAt: -1 });
+    // Convert to integers and calculate skip logic
+    const pageNumber = parseInt(page, 10);
+    const limitNumber = parseInt(limit, 10);
+    const skip = (pageNumber - 1) * limitNumber;
 
-    res.json(jobs);
+    const jobs = await Job.find(filter)
+      .select("-job_description.assessment_plan -job_description.interview_plan")
+      .populate("postedBy", "name company")
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limitNumber);
+
+    const totalJobs = await Job.countDocuments(filter);
+
+    res.json({
+      jobs,
+      currentPage: pageNumber,
+      totalPages: Math.ceil(totalJobs / limitNumber),
+      totalJobs,
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -23,7 +51,9 @@ const getJobs = async (req, res) => {
 // @GET /api/jobs/:id
 const getJobById = async (req, res) => {
   try {
-    const job = await Job.findById(req.params.id).populate("postedBy", "name company");
+    const job = await Job.findById(req.params.id)
+      .select("-job_description.assessment_plan -job_description.interview_plan")
+      .populate("postedBy", "name company");
     if (!job) return res.status(404).json({ message: "Job not found" });
     res.json(job);
   } catch (error) {
@@ -34,19 +64,20 @@ const getJobById = async (req, res) => {
 // @POST /api/jobs  — HR only
 const createJob = async (req, res) => {
   try {
-    const { title, description, location, type, salary, skills } = req.body;
+    const { title, jobNumber, job_description, location, type } = req.body;
+
+    // ensure test_description persisted (fallback if AI or frontend omitted it)
+    const jd = job_description || {};
+    if (!jd.test_description) {
+      jd.test_description = _buildTestDescription(jd);
+    }
 
     const job = await Job.create({
       title,
-      description,
+      jobNumber,
+      job_description: jd,
       location,
       type,
-      salary: {
-        min: salary?.min,
-        max: salary?.max,
-        currency: salary?.currency || "INR",
-      },
-      skills,
       company: req.user.company,
       postedBy: req.user._id,
     });

@@ -1,11 +1,10 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: "http://127.0.0.1:5000/api",
-  withCredentials: true, // cookies ke liye (refresh token)
+  baseURL: `${import.meta.env.VITE_API_BASE_URL || "http://localhost:5000"}/api`,
+  withCredentials: true, 
 });
 
-// Har request mein access token lagao
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem("accessToken");
   if (token) {
@@ -24,7 +23,7 @@ api.interceptors.response.use(
       original._retry = true;
       try {
         const { data } = await axios.post(
-          "http://127.0.0.1:5000/api/auth/refresh",
+          `${import.meta.env.VITE_API_BASE_URL || "http://localhost:5000"}/api/auth/refresh`,
           {},
           { withCredentials: true }
         );

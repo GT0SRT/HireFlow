@@ -9,6 +9,7 @@ import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import CandidateLayout from "./components/CandidateLayout";
 import JobBoard from "./pages/candidate/JobBoard";
+import CandidateJobDetail from "./pages/candidate/JobDetail";
 import MyApplications from "./pages/candidate/MyApplications";
 import Profile from "./pages/candidate/Profile";
 import HRLayout from "./components/HRLayout";
@@ -46,9 +47,13 @@ const App = () => (
                 }
               >
                 <Route path="jobs" element={<JobBoard />} />
+                <Route path="jobs/:id" element={<CandidateJobDetail />} />
                 <Route path="applications" element={<MyApplications />} />
                 <Route path="profile" element={<Profile />} />
               </Route>
+
+              <Route path="/jobs" element={<JobBoard />} />
+              <Route path="/jobs/:id" element={<CandidateJobDetail />} />
 
               <Route
                 path="/hr"

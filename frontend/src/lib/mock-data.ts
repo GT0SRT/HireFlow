@@ -4,18 +4,17 @@ export interface Job {
   company: string;
   location: string;
   type: string;
-  salary: string;
   skills: string[];
   posted: string;
 }
 
 export const candidateJobs: Job[] = [
-  { id: 1, title: "Senior Frontend Developer", company: "TechCorp", location: "Remote", type: "Full-time", salary: "$120k-$160k", skills: ["React", "TypeScript", "Tailwind"], posted: "2 days ago" },
-  { id: 2, title: "ML Engineer", company: "DataFlow AI", location: "San Francisco, CA", type: "Full-time", salary: "$140k-$180k", skills: ["Python", "PyTorch", "MLOps"], posted: "1 day ago" },
-  { id: 3, title: "Product Designer", company: "DesignHub", location: "Remote", type: "Contract", salary: "$90k-$120k", skills: ["Figma", "UX Research", "Prototyping"], posted: "5 days ago" },
-  { id: 4, title: "Backend Engineer", company: "CloudScale", location: "New York, NY", type: "Full-time", salary: "$130k-$170k", skills: ["Go", "PostgreSQL", "K8s"], posted: "3 days ago" },
-  { id: 5, title: "DevOps Engineer", company: "InfraCore", location: "Remote", type: "Full-time", salary: "$110k-$150k", skills: ["AWS", "Terraform", "Docker"], posted: "1 week ago" },
-  { id: 6, title: "Data Analyst", company: "InsightCo", location: "Austin, TX", type: "Full-time", salary: "$80k-$110k", skills: ["SQL", "Python", "Tableau"], posted: "4 days ago" },
+  { id: 1, title: "Senior Frontend Developer", company: "TechCorp", location: "Remote", type: "Full-time", skills: ["React", "TypeScript", "Tailwind"], posted: "2 days ago" },
+  { id: 2, title: "ML Engineer", company: "DataFlow AI", location: "San Francisco, CA", type: "Full-time", skills: ["Python", "PyTorch", "MLOps"], posted: "1 day ago" },
+  { id: 3, title: "Product Designer", company: "DesignHub", location: "Remote", type: "Contract", skills: ["Figma", "UX Research", "Prototyping"], posted: "5 days ago" },
+  { id: 4, title: "Backend Engineer", company: "CloudScale", location: "New York, NY", type: "Full-time", skills: ["Go", "PostgreSQL", "K8s"], posted: "3 days ago" },
+  { id: 5, title: "DevOps Engineer", company: "InfraCore", location: "Remote", type: "Full-time", skills: ["AWS", "Terraform", "Docker"], posted: "1 week ago" },
+  { id: 6, title: "Data Analyst", company: "InsightCo", location: "Austin, TX", type: "Full-time", skills: ["SQL", "Python", "Tableau"], posted: "4 days ago" },
 ];
 
 export interface AssessmentStep {

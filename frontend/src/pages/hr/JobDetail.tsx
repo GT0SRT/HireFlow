@@ -1,8 +1,15 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
-  ArrowLeft, Users, CheckCircle2, XCircle, Clock,
-  Trash2, Eye, UserCheck
+  ArrowLeft,
+  Users,
+  CheckCircle2,
+  XCircle,
+  Clock,
+  Trash2,
+  Eye,
+  UserCheck,
+  Star,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -69,8 +76,27 @@ const DUMMY_JOB: JobDetailData = {
   company: "Acme Corp",
   isActive: true,
   createdAt: new Date().toISOString(),
-  description:
-    "Build user-facing features with React/TypeScript. Collaborate with design and backend teams.",
+  job_description: {
+    job_summary:
+      "Build user-facing features with React/TypeScript. Collaborate with design and backend teams.",
+    experience_years: "3-5 years",
+    mandatory_technical_skills: ["React", "TypeScript", "Tailwind CSS"],
+    key_responsibilities: ["Develop scalable components", "Mentor juniors"],
+    requirements: ["Strong UI architecture experience", "Comfort with design systems"],
+    assessment_plan: [
+      {
+        test_type: "Coding",
+        focus_topics: ["React components", "TypeScript patterns"],
+        suggested_duration_minutes: 60,
+      },
+    ],
+    interview_plan: [
+      {
+        interview_round: "Technical",
+        focus_topics: ["Frontend architecture", "State management"],
+      },
+    ],
+  },
 };
 
 const DUMMY_APPLICANTS: Applicant[] = [
@@ -81,48 +107,38 @@ const DUMMY_APPLICANTS: Applicant[] = [
     assessmentScore: 78,
     interviewScore: 82,
     createdAt: new Date().toISOString(),
-    job_description: {
-      job_summary: "Build user-facing features with React/TypeScript. Collaborate with design and backend teams.",
-      experience_years: "3-5 years",
-      mandatory_technical_skills: ["React", "TypeScript", "Tailwind CSS"],
-      key_responsibilities: ["Develop scalable components", "Mentor juniors"],
-    },
-  },
-  job2: {
-    _id: "job2",
-    title: "Backend Engineer (Node.js)",
-    company: "Beta Labs",
-    isActive: true,
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 10).toISOString(),
-    job_description: {
-      job_summary: "Design and maintain REST APIs, optimize performance, and write tests.",
-      experience_years: "2-4 years",
-      mandatory_technical_skills: ["Node.js", "Express", "MongoDB"],
-      assessment_plan: [
-        { test_type: "Coding", focus_topics: ["Node.js Streams"], suggested_duration_minutes: 45 }
-      ],
-      interview_plan: [
-        { interview_round: "Technical", focus_topics: ["System Design"] }
-      ]
-    },
-  },
-  job3: {
-    _id: "job3",
-    title: "Junior QA Engineer",
-    company: "Gamma Inc",
-    isActive: false,
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 40).toISOString(),
-    job_description: {
-      job_summary: "Write test cases, run manual and automated tests, and report bugs."
+    candidate: {
+      _id: "c1",
+      name: "Aarav Sharma",
+      email: "aarav@example.com",
+      skills: ["React", "TypeScript", "Tailwind CSS"],
     },
   },
   {
-    _id: "a4",
+    _id: "a2",
+    status: "Assessment Pending",
+    resumeScore: 72,
+    assessmentScore: 69,
+    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 3).toISOString(),
+    notes: "Strong resume. Awaiting assessment completion.",
+    candidate: {
+      _id: "c2",
+      name: "Priya Patel",
+      email: "priya@example.com",
+      skills: ["Node.js", "Express", "MongoDB"],
+    },
+  },
+  {
+    _id: "a3",
     status: "Rejected",
     resumeScore: 45,
     assessmentScore: 38,
-    createdAt: new Date().toISOString(),
-    candidate: { _id: "c4", name: "Neha Patel", email: "neha@example.com" },
+    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 10).toISOString(),
+    candidate: {
+      _id: "c3",
+      name: "Neha Patel",
+      email: "neha@example.com",
+    },
   },
 ];
 // ─── Dummy Data End ──────────────────────────────────────────

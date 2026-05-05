@@ -11,7 +11,7 @@ if not api_key:
     raise RuntimeError("Missing Gemini API key.")
 
 genai.configure(api_key=api_key)
-model = genai.GenerativeModel('models/gemini-2.5-flash')
+model = genai.GenerativeModel(os.getenv("GEMINI_MODEL_NAME"))
 
 def score_resume(jd_json_data, resume_json_data):
     """

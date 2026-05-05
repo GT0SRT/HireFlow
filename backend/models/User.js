@@ -12,7 +12,7 @@ const userSchema = new mongoose.Schema(
       default: "candidate",
     },
     // Candidate-specific fields
-    resume: { type: String }, // URL to resume file
+    resume: { type: String },
     skills: [{ type: String }],
     // HR-specific fields
     company: { type: String },

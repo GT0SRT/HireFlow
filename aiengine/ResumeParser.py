@@ -13,7 +13,7 @@ if not api_key:
     raise RuntimeError("Missing Gemini API key.")
 
 genai.configure(api_key=api_key)
-model = genai.GenerativeModel('models/gemini-2.5-flash')
+model = genai.GenerativeModel(os.getenv("GEMINI_MODEL_NAME"))
 
 async def extract_text_from_file(file: UploadFile) -> str:
     filename = file.filename.lower()

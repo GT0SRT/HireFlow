@@ -10,7 +10,7 @@ if not api_key:
     raise RuntimeError("Missing Gemini API key.")
 
 genai.configure(api_key=api_key)
-model = genai.GenerativeModel('models/gemini-2.5-flash')
+model = genai.GenerativeModel(os.getenv("GEMINI_MODEL_NAME"))
 
 def generate_structured_jd(title: str, brief_notes: str = None):
     context = brief_notes if brief_notes else "Apply standard industry expectations for this specific role and seniority."

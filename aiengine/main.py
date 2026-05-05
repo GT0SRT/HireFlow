@@ -51,5 +51,15 @@ def jd_generator(title: str, brief_notes: str = None) -> dict:
 def ats_score(jd_json: dict, resume_json: dict) -> dict:
 	return score_resume(jd_json, resume_json)
 
+@app.post("/api/assesment-generator")
+def assesment_generator(internal_assessment_plan: dict) -> dict:
+    from Assesment import generate_interview_assessment_with_gemini
+    return generate_interview_assessment_with_gemini(internal_assessment_plan)
+
+@app.post("/api/interview-questions")
+def interview_questions(job_role: str, mandatory_skills: list, current_interview_plan: dict, resume_summary: dict, assessment_scores: dict) -> dict:
+    from Interview import generate_interview_questions
+    return generate_interview_questions(job_role, mandatory_skills, current_interview_plan, resume_summary, assessment_scores)
+
 if __name__ == "__main__":
 	uvicorn.run(app, host="0.0.0.0", port=8000)

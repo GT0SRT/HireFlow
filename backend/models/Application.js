@@ -2,18 +2,11 @@ const mongoose = require("mongoose");
 
 const applicationSchema = new mongoose.Schema(
   {
-    job: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Job",
-      required: true,
-    },
+    job: { type: mongoose.Schema.Types.ObjectId, 
+      ref: "Job", required: true, },
     candidate: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-      required: true,
-    },
-    coverLetter: { type: String },
-    resumeUrl: { type: String },
+      ref: "User", required: true, },
     resumeAnalysis: { type: mongoose.Schema.Types.Mixed },
     atsScore: { type: Number },
     atsThreshold: { type: Number },

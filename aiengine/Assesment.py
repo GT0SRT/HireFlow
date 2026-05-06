@@ -28,7 +28,7 @@ def generate_interview_assessment_with_gemini(internal_assessment_plan) -> dict:
     2. Set a practical "time_allotted" based on the plan's duration, but you may adjust it slightly depending on 
     the difficulty and exact number of questions generated.
     3. Each question must have exactly 4 options.
-    4. Identify the correct answer and provide a brief 1-sentence explanation.
+    4. Identify the correct answer.
     5. You must respond ONLY with a valid JSON object matching this exact schema:
     {{
         "assessments": [
@@ -41,7 +41,6 @@ def generate_interview_assessment_with_gemini(internal_assessment_plan) -> dict:
                         "question_text": "The question itself",
                         "options": ["Option A", "Option B", "Option C", "Option D"],
                         "correct_answer": "The exact string of the correct option",
-                        "explanation": "Brief explanation of why it is correct"
                     }}
                 ]
             }}

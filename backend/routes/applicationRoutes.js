@@ -15,7 +15,7 @@ const upload = multer({
   limits: { fileSize: 5 * 1024 * 1024 },
 });
 
-router.post("/:jobId", protect, authorize("candidate"), upload.single("resume"), applyToJob); // Candidate
+router.post("/:jobId", protect, authorize("candidate"), upload.single("resume"), applyToJob);
 router.get("/my", protect, authorize("candidate"), getMyApplications);           // Candidate
 router.get("/job/:jobId", protect, authorize("hr"), getApplicationsForJob);      // HR
 router.put("/:id/status", protect, authorize("hr"), updateApplicationStatus);    // HR

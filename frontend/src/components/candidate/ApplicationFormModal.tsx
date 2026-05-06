@@ -1,12 +1,14 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+﻿import { Dialog, DialogClose, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import api from "@/api/api";
+import { isAxiosError } from "axios";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, XCircle } from "lucide-react";
+import { CheckCircle2, X, XCircle } from "lucide-react";
 
 type AssessmentStep = {
   test_type: string;
@@ -14,14 +16,37 @@ type AssessmentStep = {
   suggested_duration_minutes: number;
 };
 
-type InterviewStep = {
-  interview_round: string;
-  focus_topics: string[];
-};
-
 type JobDescription = {
   assessment_plan?: AssessmentStep[];
-  interview_plan?: InterviewStep[];
+};
+
+type ParsedResume = Record<string, unknown>;
+
+type ApplicationScreening = {
+  threshold?: number;
+  atsThreshold?: number;
+  atsScore?: number | null;
+  score?: number | null;
+  status?: string;
+  reason?: string;
+  reasoningForCandidate?: string;
+  missingMandatorySkills?: string[];
+  attempts?: number;
+};
+
+type ExistingApplication = {
+  job?: { _id?: string } | string;
+  status?: string;
+  screening?: ApplicationScreening;
+  parsedResume?: ParsedResume;
+};
+
+type ApplicationApiError = {
+  message?: string;
+  isAlreadyApplied?: boolean;
+  screening?: ApplicationScreening & {
+    parsedResume?: ParsedResume;
+  };
 };
 
 interface ApplicationFormModalProps {
@@ -38,57 +63,111 @@ interface ApplicationFormModalProps {
 type ScreeningResult = {
   threshold: number;
   score: number | null;
-  status: "Shortlisted" | "Not Shortlisted";
-  reason: string | null;
-  resumeAnalysis: Record<string, unknown> | null;
-  missingMandatorySkills?: string[];
-  interviewTopics?: string[];
+  status?: string;
+  reason: string;
+  parsedResume: ParsedResume;
+  missingMandatorySkills: string[];
+  attempts?: number;
 };
 
-type ApplicationStatus = "form" | "screening" | "already-applied" | "error" | "rejected";
+type ApplicationStatus = "form" | "screening" | "already-applied" | "rejected";
 
 export default function ApplicationFormModal({
   open,
   onClose,
   job,
 }: ApplicationFormModalProps) {
+  const navigate = useNavigate();
   const assessmentPlan = job?.job_description?.assessment_plan || [];
-  const interviewPlan = job?.job_description?.interview_plan || [];
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
     phone: "",
     github: "",
     linkedin: "",
-    resume: null,
+    resume: null as File | null,
   });
   const [submitting, setSubmitting] = useState(false);
   const [screening, setScreening] = useState<ScreeningResult | null>(null);
   const [status, setStatus] = useState<ApplicationStatus>("form");
-  const [errorMessage, setErrorMessage] = useState("");
+  const [showAssessmentStage, setShowAssessmentStage] = useState(false);
+  const [assessmentIndex, setAssessmentIndex] = useState(0);
+  const [checking, setChecking] = useState(false);
+  const [hasExistingApplication, setHasExistingApplication] = useState(false);
+  const [createdApplicationId, setCreatedApplicationId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!open) {
-      setScreening(null);
+    if (!open || !job?._id) {
       setStatus("form");
-      setErrorMessage("");
-      setFormData({
-        fullName: "",
-        email: "",
-        phone: "",
-        github: "",
-        linkedin: "",
-        resume: null,
-      });
+      setScreening(null);
+      setFormData((prev) => ({ ...prev, resume: null }));
+      setShowAssessmentStage(false);
+      setAssessmentIndex(0);
+      return;
     }
-  }, [open]);
+
+    let mounted = true;
+    const checkExisting = async () => {
+      setChecking(true);
+      try {
+        const { data } = await api.get<ExistingApplication[]>("/applications/my");
+        if (!mounted) return;
+
+        const existingApp = data.find((app) => {
+          if (typeof app.job === "string") {
+            return app.job === job._id;
+          }
+
+          return app.job?._id === job._id;
+        });
+
+        if (existingApp) {
+          setHasExistingApplication(true);
+          const s = existingApp.screening || {};
+          const applicationStatus = existingApp.status ?? "";
+
+          if (s.status) {
+            setScreening({
+              threshold: s.atsThreshold || 70,
+              score: s.atsScore ?? s.score ?? null,
+              status: s.status,
+              reason: s.reasoningForCandidate || s.reason || "",
+              parsedResume: existingApp.parsedResume || {},
+              missingMandatorySkills: s.missingMandatorySkills || [],
+              attempts: s.attempts || 1,
+            });
+            
+            if (s.status === "Shortlisted" || ["Assessment Pending", "Interview Scheduled", "Selected", "Offered"].includes(applicationStatus)) {
+              setStatus("already-applied");
+            } else {
+              setStatus("rejected");
+            }
+          } else {
+            setStatus("already-applied");
+          }
+        } else {
+          setHasExistingApplication(false);
+          setStatus("form");
+        }
+      } catch {
+        if (mounted) {
+          setHasExistingApplication(false);
+          setStatus("form");
+        }
+      } finally {
+        if (mounted) setChecking(false);
+      }
+    };
+
+    checkExisting();
+    return () => { mounted = false; };
+  }, [open, job?._id]);
 
   if (!job) return null;
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
 
-    // For file upload
     if ((e.target as HTMLInputElement).files) {
       const { files } = e.target as HTMLInputElement;
       setFormData({
@@ -116,57 +195,82 @@ export default function ApplicationFormModal({
       setSubmitting(true);
       const payload = new FormData();
       payload.append("resume", formData.resume);
+      
+      const cacheKey = `resume_cache_${formData.resume.name}_${formData.resume.size}_${formData.resume.lastModified}`;
+      const cachedParsed = localStorage.getItem(cacheKey);
+      
+      if (cachedParsed) {
+        payload.append("cachedParsedResume", cachedParsed);
+      }
 
       const { data } = await api.post(`/applications/${job._id}`, payload, {
         headers: { "Content-Type": "multipart/form-data" },
       });
 
-      // Check if resume was parsed successfully
-      if (!data.screening || !data.screening.resumeAnalysis) {
-        setStatus("error");
-        setErrorMessage(data.message || "Failed to parse resume. Please try again with a different file.");
-        toast.error("Resume parsing failed");
+      if (!data.screening) {
+        setStatus("rejected");
+        setScreening(null);
+        toast.error("Something went wrong. Try again");
         return;
       }
 
-      setScreening(data.screening);
+      setHasExistingApplication(true);
+      const s = data.screening;
+      
+      setScreening({
+        threshold: s.threshold || s.atsThreshold || 70,
+        score: s.score ?? s.atsScore ?? null,
+        status: s.status,
+        reason: s.reason || s.reasoningForCandidate || "",
+        parsedResume: s.parsedResume || {},
+        missingMandatorySkills: s.missingMandatorySkills || [],
+        attempts: s.attempts || 1,
+      });
 
-      // Handle different screening statuses
-      if (data.screening.status === "Shortlisted") {
+      if (s.parsedResume) {
+        localStorage.setItem(cacheKey, JSON.stringify(s.parsedResume));
+      }
+
+      if (s.status === "Shortlisted") {
+        setCreatedApplicationId(data.application?._id);
         setStatus("screening");
         toast.success("Congratulations! You've been shortlisted! 🎉");
       } else {
-        // Not shortlisted - allow another attempt
         setStatus("rejected");
-        toast.info("You can try uploading another resume");
       }
     } catch (error: unknown) {
-      const errorData = error as { response?: { data?: { message?: string; isAlreadyApplied?: boolean; screening?: ScreeningResult } } };
-      const message = errorData?.response?.data?.message || "Failed to submit application";
-      const isAlreadyApplied = errorData?.response?.data?.isAlreadyApplied;
-      const existingScreening = errorData?.response?.data?.screening;
+      const errorData = isAxiosError<ApplicationApiError>(error) ? error.response?.data : undefined;
 
-      if (isAlreadyApplied) {
-        // User already applied - show their existing application status
-        setStatus("already-applied");
-        if (existingScreening) {
-          setScreening(existingScreening);
+      const s = errorData?.screening || {};
+      if (s.status) {
+        setHasExistingApplication(true);
+        setScreening({
+          threshold: s.atsThreshold ?? s.threshold ?? 70,
+          score: s.atsScore ?? s.score ?? null,
+          status: s.status,
+          reason: s.reasoningForCandidate || s.reason || "",
+          parsedResume: s.parsedResume || {},
+          missingMandatorySkills: s.missingMandatorySkills || [],
+          attempts: s.attempts || 1,
+        });
+        if (s.status === "Shortlisted") {
+          setStatus("already-applied");
+        } else {
+          setStatus("rejected");
         }
+      } else {
+        setStatus("rejected");
+        setScreening(null);
+      }
+
+      if (errorData?.isAlreadyApplied) {
         toast.info("You have already applied for this position");
       } else {
-        setStatus("error");
-        setErrorMessage(message);
-        toast.error(message);
+        toast.error(errorData?.message || "Something went wrong. Try again");
       }
     } finally {
       setSubmitting(false);
     }
-  };
-
-  const handleRetry = () => {
-    setStatus("form");
-    setFormData({ ...formData, resume: null });
-    setScreening(null);
   };
 
   const handleClose = () => {
@@ -174,63 +278,95 @@ export default function ApplicationFormModal({
     onClose();
   };
 
-  const renderStepCards = (
-    title: string,
-    emptyText: string,
-    steps: AssessmentStep[] | InterviewStep[],
-    kind: "assessment" | "interview"
-  ) => (
+  const handleViewNextAssessment = () => {
+    setShowAssessmentStage(true);
+    setAssessmentIndex(0);
+  };
+
+  const handleNextAssessment = () => {
+    setAssessmentIndex((currentIndex) => Math.min(currentIndex + 1, Math.max(assessmentPlan.length - 1, 0)));
+  };
+
+  const renderAssessmentCard = (step: AssessmentStep, index: number) => (
     <div className="rounded-2xl border border-border/60 bg-background/60 p-5 md:p-6 space-y-4">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h3 className="text-lg font-semibold">{title}</h3>
-          <p className="text-sm text-muted-foreground">Step by step after shortlist</p>
+          <h3 className="text-lg font-semibold">Assessment Stage</h3>
+          <p className="text-sm text-muted-foreground">Immediate next assessment only</p>
         </div>
         <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">
-          Next stage
+          Step {index + 1} of {assessmentPlan.length || 1}
         </Badge>
       </div>
 
-      {steps.length === 0 ? (
-        <div className="rounded-xl bg-muted/30 p-4 text-sm text-muted-foreground">
-          {emptyText}
+      <div className="rounded-xl border border-border/50 bg-muted/20 p-4 space-y-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="font-semibold">{step.test_type}</p>
+          {step.suggested_duration_minutes ? (
+            <Badge variant="outline" className="text-xs">
+              {step.suggested_duration_minutes} min
+            </Badge>
+          ) : null}
         </div>
+
+        {step.focus_topics && (
+          <p className="text-sm text-muted-foreground">Topics: {Array.isArray(step.focus_topics) ? step.focus_topics.join(", ") : step.focus_topics}</p>
+        )}
+
+        <p className="text-xs text-muted-foreground">
+          Questions for this stage will be generated in the frontend flow and saved with the application later.
+        </p>
+      </div>
+
+      {index < assessmentPlan.length - 1 ? (
+        <Button className="w-full" variant="outline" onClick={handleNextAssessment}>
+          Next Assessment
+        </Button>
       ) : (
-        <div className="space-y-3">
-          {steps.map((step, index) => (
-            <div key={`${kind}-${index}`} className="rounded-xl border border-border/50 bg-muted/20 p-4">
-              <div className="flex items-start gap-3">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary shrink-0">
-                  {index + 1}
-                </div>
-                <div className="min-w-0 flex-1 space-y-2">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="font-semibold">
-                      {kind === "assessment"
-                        ? (step as AssessmentStep).test_type
-                        : (step as InterviewStep).interview_round}
-                    </p>
-                    {kind === "assessment" && (step as AssessmentStep).suggested_duration_minutes ? (
-                      <Badge variant="outline" className="text-xs">
-                        {(step as AssessmentStep).suggested_duration_minutes} min
-                      </Badge>
-                    ) : null}
-                  </div>
-                  {(kind === "assessment"
-                    ? (step as AssessmentStep).focus_topics
-                    : (step as InterviewStep).focus_topics
-                  )?.length > 0 && (
-                    <p className="text-sm text-muted-foreground">
-                      Topics: {(kind === "assessment"
-                        ? (step as AssessmentStep).focus_topics
-                        : (step as InterviewStep).focus_topics
-                      ).join(", ")}
-                    </p>
-                  )}
-                </div>
-              </div>
-            </div>
-          ))}
+        <p className="text-sm text-muted-foreground">This is the last assessment stage available right now.</p>
+      )}
+    </div>
+  );
+
+  // LOGIC: Check if score is null or completely missing so we can show re-upload option
+  const isAtsScoreMissing = !screening || screening.score === null || screening.score === undefined;
+
+  const attempts = screening?.attempts || 1;
+  const canRetry = attempts < 3;
+
+  // REUSABLE UPLOAD CARD: Used for both Rejections AND missing ATS scores.
+  const uploadAnotherResumeCard = (
+    <div className="rounded-2xl border border-border/60 bg-background/60 p-5 md:p-6 space-y-4">
+      {canRetry ? (
+        <>
+          <div>
+            <h3 className="font-semibold text-sm mb-1">
+              {status === "already-applied" ? "ATS Score Missing? Re-upload Resume" : "Upload Another Resume"}
+            </h3>
+            <p className="text-xs text-muted-foreground mb-4">
+              {status === "already-applied"
+                ? "Your ATS score couldn't be evaluated previously. You can upload your resume again to overwrite the old one and re-run the screening."
+                : `You can upload a different resume and try again. (Attempt ${attempts} of 3)`}
+            </p>
+            <Label>Resume (PDF, DOCX, TXT)</Label>
+            <Input
+              type="file"
+              name="resume"
+              accept="application/pdf,.docx,.txt"
+              onChange={handleChange}
+              className="cursor-pointer mt-2"
+            />
+          </div>
+          <Button className="w-full h-10" onClick={handleSubmit} disabled={submitting}>
+            {submitting ? "Uploading & Screening..." : "Try Again"}
+          </Button>
+        </>
+      ) : (
+        <div>
+          <h3 className="font-semibold text-sm mb-1 text-destructive">Maximum Attempts Reached</h3>
+          <p className="text-xs text-muted-foreground">
+            You have exhausted all 3 attempts to apply for this job. You cannot upload another resume.
+          </p>
         </div>
       )}
     </div>
@@ -238,248 +374,174 @@ export default function ApplicationFormModal({
 
   return (
     <Dialog open={open} onOpenChange={(nextOpen) => (nextOpen ? undefined : handleClose())}>
-      <DialogContent
-        className="max-w-2xl max-h-[85vh] overflow-y-auto p-0 rounded-xl"
-      >
-        {/* Sticky Header */}
-        <DialogHeader
-          className="sticky top-0 bg-background z-20 px-8 py-4 border-b border-white/10 shadow-sm"
-        >
+      <DialogContent className="w-[calc(100dvw-1.5rem)] max-w-2xl mx-auto my-4 max-h-[calc(100vh-2rem)] p-0 rounded-2xl sm:max-h-[85vh] [&>button]:hidden flex flex-col">
+        <DialogHeader className="sticky top-0 z-20 border-b border-white/10 bg-background px-4 py-4 pr-14 shadow-sm sm:px-8">
           <DialogTitle className="text-2xl font-semibold">
-            {status === "already-applied"
-              ? `Already Applied for ${job.title}`
-              : `Apply for ${job.title}`}
+            {status === "already-applied" || hasExistingApplication ? `Application for ${job.title}` : `Apply for ${job.title}`}
           </DialogTitle>
+
+          <DialogClose className="absolute right-3 top-3 inline-flex h-9 w-9 items-center justify-center rounded-full border border-border/60 bg-background/90 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 sm:right-4 sm:top-4">
+            <X className="h-4 w-4" />
+            <span className="sr-only">Close</span>
+          </DialogClose>
         </DialogHeader>
 
-        {/* Scrollable Body */}
-        <div className="px-8 py-6 space-y-10">
-          {/* ALREADY APPLIED STATE */}
-          {status === "already-applied" && (
-            <div className="rounded-2xl border border-border/60 bg-background/60 p-5 md:p-6 space-y-4">
-              <div className="rounded-xl bg-blue-500/10 p-4 space-y-2 border border-blue-500/20">
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="h-6 w-6 text-blue-500" />
-                  <p className="font-semibold text-blue-500">You have already applied for this job</p>
-                </div>
-              </div>
-
-              {screening && (
-                <div className="rounded-xl bg-muted/30 p-4 space-y-3">
-                  <div className="flex flex-wrap items-center gap-2">
-                    {screening.status === "Shortlisted" ? (
-                      <CheckCircle2 className="h-6 w-6 text-emerald-500" />
-                    ) : (
-                      <XCircle className="h-6 w-6 text-destructive" />
-                    )}
-                    {screening.score != null && (
-                      <span className="text-sm font-medium">ATS Score: {screening.score}%</span>
-                    )}
-                    <Badge
-                      variant="outline"
-                      className={
-                        screening.status === "Shortlisted"
-                          ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
-                          : "bg-destructive/10 text-destructive border-destructive/20"
-                      }
-                    >
-                      {screening.status}
-                    </Badge>
-                  </div>
-                  {screening.reason && (
-                    <p className="text-sm md:text-base text-muted-foreground leading-relaxed whitespace-pre-wrap">
-                      {screening.reason}
-                    </p>
-                  )}
-                </div>
-              )}
-
-              {screening?.status === "Shortlisted" && (
+        <div className="space-y-6 px-4 py-5 sm:px-8 sm:py-6 overflow-y-auto">
+          {checking ? (
+            <div className="flex flex-col items-center justify-center py-12 space-y-4">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+              <p className="text-sm text-muted-foreground">Checking application status...</p>
+            </div>
+          ) : (
+            <>
+              {/* 1. ALREADY APPLIED (NO SCREENING DATA FOUND) */}
+              {status === "already-applied" && !screening && (
                 <div className="space-y-4">
-                  <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-5 md:p-6 space-y-2">
-                    <div className="flex items-center gap-2">
-                      <CheckCircle2 className="h-5 w-5 text-emerald-500" />
-                      <p className="font-semibold text-emerald-600">You are shortlisted</p>
+                  <div className="rounded-2xl border border-border/60 bg-background/60 p-5 md:p-6 space-y-4">
+                    <div className="rounded-xl bg-blue-500/10 p-4 space-y-2 border border-blue-500/20">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle2 className="h-6 w-6 text-blue-500" />
+                        <p className="font-semibold text-blue-500">You have already applied for this job</p>
+                      </div>
                     </div>
-                    <p className="text-sm text-muted-foreground">
-                      Keep an eye on your email. We will contact you with further details.
-                    </p>
                   </div>
-
-                  {renderStepCards(
-                    "Assessment Stage",
-                    "Assessment details will be shared by email if no plan is configured yet.",
-                    assessmentPlan,
-                    "assessment"
-                  )}
-
-                  {renderStepCards(
-                    "Interview Stage",
-                    "Interview details will be shared by email after assessment completion.",
-                    interviewPlan,
-                    "interview"
-                  )}
-                </div>
-              )}
-
-              <Button className="w-full" onClick={handleClose}>
-                Close
-              </Button>
-            </div>
-          )}
-
-          {/* ERROR STATE - Parse Failed */}
-          {status === "error" && (
-            <div className="rounded-2xl border border-border/60 bg-background/60 p-5 md:p-6 space-y-4">
-              <div className="rounded-xl bg-destructive/10 p-4 space-y-2 border border-destructive/20">
-                <div className="flex items-start gap-2">
-                  <XCircle className="h-6 w-6 text-destructive flex-shrink-0 mt-0.5" />
-                  <div>
-                    <p className="font-semibold text-destructive">Something went wrong</p>
-                    <p className="text-sm text-muted-foreground mt-1">{errorMessage}</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                <Button className="w-full" onClick={handleRetry} variant="outline">
-                  Try Again
-                </Button>
-                <Button className="w-full" onClick={handleClose} variant="ghost">
-                  Close
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {/* REJECTED STATE - Not Shortlisted (Allow Retry) */}
-          {status === "rejected" && screening && (
-            <div className="space-y-4">
-              {/* Result Section */}
-              <div className="rounded-2xl border border-border/60 bg-background/60 p-5 md:p-6 space-y-4">
-                <div className="rounded-xl bg-muted/30 p-4 space-y-2">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <XCircle className="h-6 w-6 text-destructive" />
-                    {screening.score != null && <span className="text-sm font-medium">ATS Score: {screening.score}%</span>}
-                    <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/20">
-                      {screening.status}
-                    </Badge>
-                  </div>
-                  {screening.reason && (
-                    <p className="text-sm md:text-base text-muted-foreground leading-relaxed whitespace-pre-wrap">
-                      {screening.reason}
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              {/* Try Again Section */}
-              <div className="rounded-2xl border border-border/60 bg-background/60 p-5 md:p-6 space-y-4">
-                <div>
-                  <h3 className="font-semibold text-sm mb-2">Upload Another Resume</h3>
-                  <p className="text-xs text-muted-foreground mb-4">
-                    You can upload a different resume and try again.
-                  </p>
-                  <Label>Resume (PDF, DOCX, TXT)</Label>
-                  <Input
-                    type="file"
-                    name="resume"
-                    accept="application/pdf,.docx,.txt"
-                    onChange={handleChange}
-                    className="cursor-pointer mt-2"
-                  />
-                </div>
-
-                <div className="space-y-3">
-                  <Button className="w-full h-12 text-base" onClick={handleSubmit} disabled={submitting}>
-                    {submitting ? "uploading..." : "Try Again"}
-                  </Button>
-                  <Button className="w-full" onClick={handleClose} variant="ghost">
+                  
+                  {/* Show re-upload card here since ATS is totally missing */}
+                  {uploadAnotherResumeCard}
+                  
+                  <Button className="w-full" variant="outline" onClick={handleClose}>
                     Close
                   </Button>
                 </div>
-              </div>
-            </div>
-          )}
+              )}
 
-          {/* SHORTLISTED STATE */}
-          {status === "screening" && screening && (
-            <div className="space-y-4">
-              <div className="rounded-2xl border border-border/60 bg-background/60 p-5 md:p-6 space-y-4">
-                <div className="rounded-xl bg-emerald-500/10 p-4 space-y-2 border border-emerald-500/20">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <CheckCircle2 className="h-6 w-6 text-emerald-500" />
-                    {screening.score != null && <span className="text-sm font-medium">ATS Score: {screening.score}%</span>}
-                    <Badge variant="outline" className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20">
-                      {screening.status}
-                    </Badge>
+              {/* 2. ALREADY APPLIED OR SCREENING SUCCESS (SCREENING DATA EXISTS) */}
+              {(status === "already-applied" || status === "screening") && screening && (
+                <div className="space-y-4">
+                  <div className="rounded-2xl border border-border/60 bg-background/60 p-5 md:p-6 space-y-4">
+                    <div className="rounded-xl bg-emerald-500/10 p-4 space-y-2 border border-emerald-500/20">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle2 className="h-6 w-6 text-emerald-500" />
+                        {screening.score !== null && (
+                          <span className="text-sm font-medium text-emerald-500">ATS Score: {screening.score}%</span>
+                        )}
+                        <Badge variant="outline" className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20">
+                          Shortlisted
+                        </Badge>
+                      </div>
+                      {screening.reason && (
+                        <p className="text-sm text-muted-foreground whitespace-pre-wrap mt-2">{screening.reason}</p>
+                      )}
+                    </div>
                   </div>
-                  {screening.reason && (
-                    <p className="text-sm md:text-base text-muted-foreground leading-relaxed whitespace-pre-wrap">
-                      {screening.reason}
-                    </p>
+
+                  {showAssessmentStage ? (
+                    assessmentPlan.length > 0 ? (
+                      renderAssessmentCard(assessmentPlan[assessmentIndex], assessmentIndex)
+                    ) : (
+                      <div className="rounded-2xl border border-border/60 bg-background/60 p-5 md:p-6 text-sm text-muted-foreground">
+                        No assessment stages are configured for this role yet.
+                      </div>
+                    )
+                  ) : (
+                    <Button className="w-full" variant="outline" onClick={handleViewNextAssessment}>
+                      View Next Assessment
+                    </Button>
                   )}
-                </div>
 
-                <div className="rounded-2xl bg-primary/10 border border-primary/20 p-5 space-y-2">
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 className="h-5 w-5 text-primary" />
-                    <p className="font-semibold text-primary">You are shortlisted</p>
+                  {/* Show re-upload card if ATS score failed to load (either for new application or already applied) */}
+                  {isAtsScoreMissing && (status === "already-applied" || status === "screening") && uploadAnotherResumeCard}
+
+                  <div className="flex flex-col gap-2">
+                    {assessmentPlan.length > 0 && createdApplicationId && (
+                      <Button
+                        className="w-full"
+                        onClick={() => {
+                          onClose();
+                          navigate(`/candidate/applications/${createdApplicationId}/assessment/0`);
+                        }}
+                      >
+                        Start Assessment
+                      </Button>
+                    )}
+                    <Button
+                      className="w-full"
+                      variant={(isAtsScoreMissing && status === "already-applied") ? "outline" : "default"}
+                      onClick={() => {
+                        onClose();
+                        navigate("/candidate/applications");
+                      }}
+                    >
+                      {assessmentPlan.length > 0 && createdApplicationId ? "View My Applications" : "Close"}
+                    </Button>
                   </div>
-                  <p className="text-sm text-muted-foreground">
-                    Keep an eye on your email. We will contact you with further details.
-                  </p>
                 </div>
-              </div>
-
-              {renderStepCards(
-                "Assessment Stage",
-                "Assessment details will be shared by email if no plan is configured yet.",
-                assessmentPlan,
-                "assessment"
               )}
 
-              {renderStepCards(
-                "Interview Stage",
-                "Interview details will be shared by email after assessment completion.",
-                interviewPlan,
-                "interview"
+              {/* 3. REJECTED */}
+              {status === "rejected" && (
+                <div className="space-y-4">
+                  {screening && (
+                    <div className="rounded-2xl border border-border/60 bg-background/60 p-5 md:p-6 space-y-4">
+                      <div className="rounded-xl bg-destructive/10 p-4 space-y-2 border border-destructive/20">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <XCircle className="h-6 w-6 text-destructive" />
+                          {screening.score !== null && (
+                            <span className="text-sm font-medium text-destructive">ATS Score: {screening.score}%</span>
+                          )}
+                          <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/20">
+                            Not Shortlisted
+                          </Badge>
+                        </div>
+                        {screening.reason && (
+                          <p className="text-sm text-muted-foreground whitespace-pre-wrap mt-2">
+                            {screening.reason}
+                          </p>
+                        )}
+                        {screening.missingMandatorySkills && screening.missingMandatorySkills.length > 0 && (
+                          <div className="pt-2">
+                            <p className="text-sm font-medium text-destructive">Missing Mandatory Skills:</p>
+                            <ul className="list-disc list-inside text-sm text-muted-foreground mt-1">
+                              {screening.missingMandatorySkills.map((skill) => (
+                                <li key={skill}>{skill}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Always show re-upload card for rejected status */}
+                  {uploadAnotherResumeCard}
+                </div>
               )}
 
-              <Button className="w-full" onClick={handleClose}>
-                Close
-              </Button>
-            </div>
-          )}
+              {/* 4. FRESH FORM */}
+              {status === "form" && (
+                <div className="space-y-6">
+                  <div>
+                    <h2 className="text-lg font-medium mb-3">Submit Application</h2>
+                    <div className="space-y-2">
+                      <Label>Upload Resume (PDF, DOCX, TXT)</Label>
+                      <Input
+                        type="file"
+                        name="resume"
+                        accept="application/pdf,.docx,.txt"
+                        onChange={handleChange}
+                        className="cursor-pointer"
+                      />
+                      <p className="text-xs text-muted-foreground">Upload your resume for AI parsing and ATS screening.</p>
+                    </div>
+                  </div>
 
-          {/* FORM STATE - Initial Upload */}
-          {status === "form" && (
-            <>
-              {/* SECTION : Resume */}
-              <div>
-                <h2 className="text-lg font-medium mb-4">Resume</h2>
-
-                <div className="space-y-2">
-                  <Label>Upload Resume (PDF, DOCX, TXT)</Label>
-                  <Input
-                    type="file"
-                    name="resume"
-                    accept="application/pdf,.docx,.txt"
-                    onChange={handleChange}
-                    className="cursor-pointer"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Upload your resume for AI parsing and ATS screening.
-                  </p>
+                  <Button className="w-full h-12 text-base" onClick={handleSubmit} disabled={submitting}>
+                    {submitting ? "Uploading & Screening..." : "Upload & Apply"}
+                  </Button>
                 </div>
-              </div>
-
-              <Button className="w-full h-12 text-base" onClick={handleSubmit} disabled={submitting}>
-                {submitting ? "uploading..." : "Upload"}
-              </Button>
+              )}
             </>
           )}
-
         </div>
       </DialogContent>
     </Dialog>

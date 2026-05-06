@@ -105,7 +105,7 @@ export default function Profile() {
   );
 
   return (
-    <div className="max-w-3xl">
+    <div className="max-w-3xl mt-16 md:mt-3 mb-3">
 
       {/* Page Title */}
       <div className="mb-8">
@@ -301,14 +301,16 @@ export default function Profile() {
       )}
 
       {/* Save Button */}
-      <Button
-        className="glow-primary-sm gap-2"
-        onClick={handleSave}
-        disabled={saving}
-      >
-        <Save className="h-4 w-4" />
-        {saving ? "Saving..." : "Save Changes"}
-      </Button>
+      <div className="flex w-full justify-center animate-fade-in" style={{ animationDelay: "0.25s" }}>
+        <Button
+          className="glow-primary-sm gap-2"
+          onClick={handleSave}
+          disabled={saving}
+        >
+          <Save className="h-4 w-4" />
+          {saving ? "Saving..." : "Save Changes"}
+        </Button>
+      </div>
 
     </div>
   );

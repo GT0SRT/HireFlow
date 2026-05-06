@@ -40,8 +40,16 @@ async def resume_parser(file: UploadFile = File(...)) -> dict:
     try:
         result = await process_resume_analysis(file)
         return result
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        error_message = str(e)
+        if "429" in error_message and ("quota" in error_message.lower() or "rate limit" in error_message.lower()):
+            raise HTTPException(
+                status_code=429,
+                detail="AI resume parsing is temporarily rate-limited. Please try again later."
+            )
+        raise HTTPException(status_code=500, detail=error_message)
     
 @app.post("/api/jd-generator")
 def jd_generator(title: str, brief_notes: str = None) -> dict:

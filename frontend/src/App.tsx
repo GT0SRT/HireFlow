@@ -11,6 +11,8 @@ import CandidateLayout from "./components/CandidateLayout";
 import JobBoard from "./pages/candidate/JobBoard";
 import CandidateJobDetail from "./pages/candidate/JobDetail";
 import MyApplications from "./pages/candidate/MyApplications";
+import AssessmentPage from "./pages/candidate/AssessmentPage";
+import InterviewPage from "./pages/candidate/InterviewPage";
 import Profile from "./pages/candidate/Profile";
 import HRLayout from "./components/HRLayout";
 import Dashboard from "./pages/hr/Dashboard";
@@ -50,6 +52,8 @@ const App = () => (
                 <Route path="jobs" element={<JobBoard />} />
                 <Route path="jobs/:id" element={<CandidateJobDetail />} />
                 <Route path="applications" element={<MyApplications />} />
+                <Route path="applications/:applicationId/assessment/:assessmentIndex" element={<AssessmentPage />} />
+                <Route path="applications/:applicationId/interview/:interviewIndex" element={<InterviewPage />} />
                 <Route path="profile" element={<Profile />} />
               </Route>
 

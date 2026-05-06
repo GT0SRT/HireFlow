@@ -21,3 +21,36 @@ export async function generateJobDescription(title: string, userDescription?: st
   });
   return response.data;
 }
+
+export interface ATSResult {
+  score: number;
+  threshold: number;
+  reasoning_for_candidate: string;
+  reasoning_for_hr: string;
+  missing_mandatory_skills: string[];
+}
+
+export interface ParseAndScoreResponse {
+  success: boolean;
+  message: string;
+  data: {
+    parsedResume: Record<string, unknown>;
+    atsResult: ATSResult;
+  };
+}
+
+export async function parseAndScoreResume(file: File, jdJson?: unknown): Promise<ParseAndScoreResponse> {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  if (jdJson !== undefined) {
+    formData.append("jd_json", JSON.stringify(jdJson));
+  }
+
+  const response = await api.post("/ai/parse-and-score", formData, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });
+  return response.data;
+}

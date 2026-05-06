@@ -74,8 +74,6 @@ export default function CandidateJobDetail() {
   const assessmentPlan = job.job_description?.assessment_plan || [];
   const interviewPlan = job.job_description?.interview_plan || [];
 
-console.log(job);
-
   return (
     <div className="max-w-4xl mx-auto text-left pt-5 pb-12">
       <button

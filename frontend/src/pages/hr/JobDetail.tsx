@@ -359,7 +359,7 @@ export default function JobDetail() {
                         {job.job_description.assessment_plan.map((test, i) => (
                           <li key={i} className="text-sm">
                             <strong>{test.test_type}</strong> ({test.suggested_duration_minutes}m)
-                            <div className="text-muted-foreground mt-1">{test.focus_topics?.join(", ")}</div>
+                            <div className="text-muted-foreground mt-1">{Array.isArray(test.focus_topics) ? test.focus_topics.join(", ") : test.focus_topics}</div>
                           </li>
                         ))}
                       </ul>
@@ -372,7 +372,7 @@ export default function JobDetail() {
                         {job.job_description.interview_plan.map((round, i) => (
                           <li key={i} className="text-sm">
                             <strong>{round.interview_round}</strong>
-                            <div className="text-muted-foreground mt-1">{round.focus_topics?.join(", ")}</div>
+                            <div className="text-muted-foreground mt-1">{Array.isArray(round.focus_topics) ? round.focus_topics.join(", ") : round.focus_topics}</div>
                           </li>
                         ))}
                       </ul>

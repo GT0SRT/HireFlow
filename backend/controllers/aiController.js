@@ -19,7 +19,7 @@ const parseAndScoreResumeData = async (file, jdJson, cachedParsedResumeStr) => {
         throw new Error("No job description provided (jd_json).");
     }
 
-    const AI_ENGINE_URL = process.env.AI_ENGINE_URL || "http://localhost:8000";
+    const AI_ENGINE_URL = process.env.AI_ENGINE_URL || "http://127.0.0.1:8000";;
 
     let parsedResumeJson;
 
@@ -80,7 +80,7 @@ const generateJdFromAi = async (req, res) => {
     try {
         const { title, notes } = req.body;
 
-        const AI_ENGINE_URL = process.env.AI_ENGINE_URL || "http://localhost:8000";
+        const AI_ENGINE_URL = process.env.AI_ENGINE_URL || "http://127.0.0.1:8000";;
 
         // Convert the payload to URL Query Parameters instead of a JSON body
         const url = new URL(`${AI_ENGINE_URL}/api/jd-generator`);
@@ -107,6 +107,8 @@ const generateJdFromAi = async (req, res) => {
     }
 };
 
+
+
 const parseResumeProxy = async (req, res) => {
     try {
         // 1. Check if the file actually made it
@@ -114,7 +116,7 @@ const parseResumeProxy = async (req, res) => {
             return res.status(400).json({ message: "No resume file uploaded." });
         }
 
-        const AI_ENGINE_URL = process.env.AI_ENGINE_URL || "http://localhost:8000";
+        const AI_ENGINE_URL = process.env.AI_ENGINE_URL || "http://127.0.0.1:8000";;
 
         // 2. Package the file buffer into FormData so Python can read it as an UploadFile
         const formData = new FormData();

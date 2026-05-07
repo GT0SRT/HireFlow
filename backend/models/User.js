@@ -11,9 +11,16 @@ const userSchema = new mongoose.Schema(
       enum: ["candidate", "hr"],
       default: "candidate",
     },
+    
+    // Common fields for all users
+    phone: { type: String, trim: true },
+    location: { type: String, trim: true },
+    
     // Candidate-specific fields
-    resume: { type: String },
+    bio: { type: String, trim: true },
+    resume: { type: String }, // Resume file path/URL
     skills: [{ type: String }],
+    
     // HR-specific fields
     company: { type: String },
     companyProfile: {
@@ -23,6 +30,7 @@ const userSchema = new mongoose.Schema(
       about: { type: String },
       hiringEmail: { type: String },
     },
+    
     // Token for refresh
     refreshToken: { type: String },
   },
@@ -30,12 +38,6 @@ const userSchema = new mongoose.Schema(
 );
 
 // Hash password before saving
-// userSchema.pre("save", async function (next) {
-//   if (!this.isModified("password")) return next();
-//   this.password = await bcrypt.hash(this.password, 12);
-//   next();
-// });
-
 userSchema.pre("save", async function () {
   if (!this.isModified("password")) return;
   this.password = await bcrypt.hash(this.password, 12);

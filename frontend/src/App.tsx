@@ -20,7 +20,6 @@ import MyApplications from "./pages/candidate/MyApplications";
 import AssessmentPage from "./pages/candidate/AssessmentPage";
 import InterviewPage from "./pages/candidate/InterviewPage";
 import Profile from "./pages/candidate/Profile";
-import AIAssessment from "./pages/candidate/AIAssessment";
 
 import Dashboard from "./pages/hr/Dashboard";
 import JobDetail from "./pages/hr/JobDetail";
@@ -57,7 +56,7 @@ const App = () => (
                 }
               >
                 <Route path="jobs" element={<JobBoard />} />
-                <Route path="assessment" element={<AIAssessment />} />
+                <Route path="assessment" element={<AssessmentPage />} />
                 <Route path="jobs/:id" element={<CandidateJobDetail />} />
                 <Route path="applications" element={<MyApplications />} />
                 <Route

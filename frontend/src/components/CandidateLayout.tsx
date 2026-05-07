@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Outlet, Link, useLocation } from "react-router-dom";
-import { Zap, Briefcase, FileText, User, Sun, Moon, LogOut, Menu, X } from "lucide-react";
+import { Zap, Briefcase, FileText, User, Sun, Moon, LogOut, Menu, X, Brain } from "lucide-react";
 import { useTheme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 
@@ -8,6 +8,7 @@ const links = [
   { to: "/candidate/jobs", label: "Job Board", icon: Briefcase },
   { to: "/candidate/applications", label: "My Applications", icon: FileText },
   { to: "/candidate/profile", label: "Profile", icon: User },
+  { to: "/candidate/assessment", label: "Assessments", icon: Brain },
 ];
 
 export default function CandidateLayout() {

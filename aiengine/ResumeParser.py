@@ -5,15 +5,10 @@ from docx import Document
 import google.generativeai as genai
 from dotenv import load_dotenv
 from fastapi import UploadFile, HTTPException
+from key_manager import get_next_gemini_key
 
 load_dotenv()
 
-api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
-if not api_key:
-    raise RuntimeError("Missing Gemini API key.")
-
-genai.configure(api_key=api_key)
-model = genai.GenerativeModel(os.getenv("GEMINI_MODEL_NAME"))
 
 async def extract_text_from_file(file: UploadFile) -> str:
     filename = file.filename.lower()
@@ -41,6 +36,10 @@ async def process_resume_analysis(file: UploadFile):
 
     if not text.strip():
         return {"error": "Could not extract text from this document."}
+
+    api_key = get_next_gemini_key()
+    genai.configure(api_key=api_key)
+    model = genai.GenerativeModel(os.getenv("GEMINI_MODEL_NAME"))
 
     prompt = f"""
     You are an expert Technical Recruiter and AI Assessor. Analyze the following resume text and extract the key information.

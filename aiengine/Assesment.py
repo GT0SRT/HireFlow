@@ -2,17 +2,16 @@ import os
 import json
 import google.generativeai as genai
 from dotenv import load_dotenv
+from key_manager import get_next_gemini_key
 
 load_dotenv()
 
-api_key = os.getenv("GEMINI_API_KEY")
-if not api_key:
-    raise RuntimeError("Missing Gemini API key.")
-
-genai.configure(api_key=api_key)
-model = genai.GenerativeModel(os.getenv("GEMINI_MODEL_NAME"))
 
 def generate_interview_assessment_with_gemini(internal_assessment_plan) -> dict:
+    api_key = get_next_gemini_key()
+    genai.configure(api_key=api_key)
+    model = genai.GenerativeModel(os.getenv("GEMINI_MODEL_NAME"))
+
     prompt = f"""
     You are an expert Technical Recruiter and AI Assessor. Based on following Internal Assessment Plan,
     generate a JSON object consisting of multiple-choice questions (MCQs). The questions should be

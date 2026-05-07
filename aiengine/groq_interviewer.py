@@ -1,22 +1,22 @@
 import os
 import json
 from dotenv import load_dotenv
+from key_manager import get_next_groq_key
 
 load_dotenv()
 
-groq_api_key = os.getenv("GROQ_API_KEY")
-if groq_api_key:
-    try:
-        from groq import Groq
-        groq_client = Groq(api_key=groq_api_key)
-    except ImportError:
-        groq_client = None
-else:
+try:
+    from groq import Groq
+except ImportError:
     groq_client = None
+    Groq = None
 
 def process_interview_turn(question_data: dict, candidate_response: str, chat_history: list) -> dict:
-    if not groq_client:
-        return {"error": "Groq client is not initialized. Please set GROQ_API_KEY and install the groq package."}
+    groq_api_key = get_next_groq_key()
+    if not groq_api_key or not Groq:
+        return {"error": "Groq client is not initialized. Please set GROQ_API_KEYS and install the groq package."}
+
+    groq_client = Groq(api_key=groq_api_key)
 
     system_prompt = f"""
     You are an expert Technical Interviewer. You are evaluating the candidate on the following question:

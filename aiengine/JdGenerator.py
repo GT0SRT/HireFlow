@@ -1,18 +1,16 @@
 import os
-from pyexpat import model
 from dotenv import load_dotenv
 import google.generativeai as genai
+from key_manager import get_next_gemini_key
 
 load_dotenv()
 
-api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
-if not api_key:
-    raise RuntimeError("Missing Gemini API key.")
-
-genai.configure(api_key=api_key)
-model = genai.GenerativeModel(os.getenv("GEMINI_MODEL_NAME"))
 
 def generate_structured_jd(title: str, brief_notes: str = None):
+    api_key = get_next_gemini_key()
+    genai.configure(api_key=api_key)
+    model = genai.GenerativeModel(os.getenv("GEMINI_MODEL_NAME"))
+
     context = brief_notes if brief_notes else "Apply standard industry expectations for this specific role and seniority."
 
     prompt = f"""

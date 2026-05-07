@@ -1,5 +1,4 @@
 
-import { useUserStore } from "../../store/useUserStore";
 
 interface Metrics {
   technicalKnowledge: number;
@@ -52,11 +51,6 @@ const AssessmentResults = ({
   onRestart: _onRestart,
   loading = false,
 }: AssessmentResultsProps) => {
-  const theme = useUserStore(
-    (state) => state.theme
-  );
-
-  const isDark = theme === "dark";
 
   if (loading || !result) {
     return <div>Loading...</div>;

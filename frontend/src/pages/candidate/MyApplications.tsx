@@ -1,172 +1,300 @@
-import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import {
   FileText, CheckCircle, Clock, AlertCircle, ChevronDown, ChevronUp,
-  ClipboardCheck, Video, FileCheck, Users, Download, Award
+  ClipboardCheck
 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import api from "@/api/api";
+import { toast } from "sonner";
 
 interface AssessmentStep {
-  title: string;
+  testType: string;
+  coveredTopics?: string[];
   score?: number;
-  status: "completed" | "pending" | "locked";
-  type: "mcq" | "coding";
+  threshold?: number;
+  completedAt?: string;
+  suggestedDurationMinutes?: number;
 }
 
 interface InterviewStep {
-  title: string;
-  score?: number;
-  status: "completed" | "scheduled" | "pending" | "locked";
-  type: "ai" | "human";
-  date?: string;
+  interview_round: string;
+  focus_topics?: string[];
+}
+
+interface ApplicationScreening {
+  atsScore?: number | null;
+  atsThreshold?: number | null;
+  status?: string;
+  reasoningForCandidate?: string;
+  reasoningForHR?: string;
+  missingMandatorySkills?: string[];
+  completedAt?: string;
+  attempts?: number;
+}
+
+interface JobDescription {
+  assessment_plan?: Array<{
+    test_type: string;
+    focus_topics?: string[];
+    suggested_duration_minutes?: number;
+  }>;
+  interview_plan?: InterviewStep[];
 }
 
 interface Application {
-  id: number;
-  title: string;
-  company: string;
-  appliedDate: string;
-  overallStatus: string;
-  progress: number;
-  assessments: AssessmentStep[];
-  interviews: InterviewStep[];
-  docsVerified: boolean;
-  docsRequired: string[];
-  docsSubmitted: string[];
+  _id: string;
+  job: {
+    _id: string;
+    title: string;
+    company: string;
+    job_description?: JobDescription;
+  };
+  status?: string;
+  progress?: number;
+  notes?: string;
+  createdAt: string;
+  screening?: ApplicationScreening;
+  assessment?: AssessmentStep[];
+  assessments?: AssessmentStep[];
+  interviews?: InterviewStep[];
+  docsVerified?: boolean;
+  docsRequired?: string[];
+  docsSubmitted?: string[];
   teamAllocated?: string;
-  offerAvailable: boolean;
+  offerAvailable?: boolean;
 }
 
-const applications: Application[] = [
-  {
-    id: 1,
-    title: "Senior Frontend Developer",
-    company: "TechCorp",
-    appliedDate: "Feb 20, 2026",
-    overallStatus: "interview-scheduled",
-    progress: 55,
-    assessments: [
-      { title: "JavaScript Fundamentals", score: 88, status: "completed", type: "mcq" },
-      { title: "React Coding Challenge", score: 92, status: "completed", type: "coding" },
-    ],
-    interviews: [
-      { title: "AI Screening Round", score: 85, status: "completed", type: "ai", date: "Feb 22, 2026" },
-      { title: "Technical Round 1", status: "scheduled", type: "human", date: "Mar 01, 2026" },
-      { title: "HR Interview", status: "locked", type: "human" },
-    ],
-    docsVerified: false,
-    docsRequired: ["Aadhaar Card", "PAN Card", "Degree Certificate"],
-    docsSubmitted: [],
-    offerAvailable: false,
-  },
-  {
-    id: 2,
-    title: "ML Engineer",
-    company: "DataFlow AI",
-    appliedDate: "Feb 18, 2026",
-    overallStatus: "assessment-pending",
-    progress: 20,
-    assessments: [
-      { title: "Python Basics", score: 76, status: "completed", type: "mcq" },
-      { title: "ML Coding Challenge", status: "pending", type: "coding" },
-    ],
-    interviews: [
-      { title: "AI Technical Screen", status: "locked", type: "ai" },
-    ],
-    docsVerified: false,
-    docsRequired: ["PAN Card", "Degree Certificate"],
-    docsSubmitted: [],
-    offerAvailable: false,
-  },
-  {
-    id: 3,
-    title: "Product Designer",
-    company: "DesignHub",
-    appliedDate: "Feb 15, 2026",
-    overallStatus: "offered",
-    progress: 100,
-    assessments: [
-      { title: "Design Principles", score: 94, status: "completed", type: "mcq" },
-      { title: "Portfolio Review", score: 90, status: "completed", type: "mcq" },
-    ],
-    interviews: [
-      { title: "AI Screening", score: 92, status: "completed", type: "ai", date: "Feb 17, 2026" },
-      { title: "Design Lead Interview", score: 88, status: "completed", type: "human", date: "Feb 19, 2026" },
-    ],
-    docsVerified: true,
-    docsRequired: ["Aadhaar Card", "Degree Certificate", "Experience Letter"],
-    docsSubmitted: ["Aadhaar Card", "Degree Certificate", "Experience Letter"],
-    teamAllocated: "Design",
-    offerAvailable: true,
-  },
-  {
-    id: 4,
-    title: "Backend Engineer",
-    company: "CloudScale",
-    appliedDate: "Feb 12, 2026",
-    overallStatus: "under-review",
-    progress: 40,
-    assessments: [
-      { title: "Go Fundamentals", score: 80, status: "completed", type: "mcq" },
-      { title: "System Design Quiz", score: 70, status: "completed", type: "mcq" },
-    ],
-    interviews: [
-      { title: "AI Technical Screen", status: "pending", type: "ai" },
-      { title: "Hiring Manager Round", status: "locked", type: "human" },
-    ],
-    docsVerified: false,
-    docsRequired: ["PAN Card", "Degree Certificate"],
-    docsSubmitted: [],
-    offerAvailable: false,
-  },
-];
-
 const statusConfig: Record<string, { icon: typeof Clock; color: string; label: string }> = {
-  "assessment-pending": { icon: Clock, color: "bg-amber-500/10 text-amber-500 border-amber-500/20", label: "Assessment Pending" },
-  "interview-scheduled": { icon: AlertCircle, color: "bg-primary/10 text-primary border-primary/20", label: "Interview Scheduled" },
-  "under-review": { icon: Clock, color: "bg-muted text-muted-foreground border-border", label: "Under Review" },
-  "offered": { icon: CheckCircle, color: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20", label: "Offered" },
+  Applied:               { icon: Clock,        color: "bg-muted text-muted-foreground border-border",            label: "Applied" },
+  Shortlisted:           { icon: CheckCircle,  color: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20", label: "Shortlisted" },
+  "Not Shortlisted":     { icon: AlertCircle,  color: "bg-destructive/10 text-destructive border-destructive/20", label: "Not Shortlisted" },
+  "Assessment Pending":  { icon: Clock,        color: "bg-amber-500/10 text-amber-500 border-amber-500/20",      label: "Assessment Pending" },
+  "Interview Scheduled": { icon: AlertCircle,  color: "bg-primary/10 text-primary border-primary/20",            label: "Interview Scheduled" },
+  Offered:                { icon: CheckCircle,  color: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20", label: "Offered" },
+  Rejected:               { icon: AlertCircle,  color: "bg-destructive/10 text-destructive border-destructive/20", label: "Rejected" },
 };
 
 const stepStatusStyle: Record<string, string> = {
   completed: "text-emerald-500",
-  pending: "text-amber-500",
+  pending:   "text-amber-500",
   scheduled: "text-primary",
-  locked: "text-muted-foreground opacity-50",
+  locked:    "text-muted-foreground opacity-50",
+  rejected:  "text-destructive",
+};
+
+const stepStatusLabel: Record<string, string> = {
+  completed: "Done",
+  pending: "Pending",
+  scheduled: "Scheduled",
+  locked: "Locked",
+  rejected: "Screening failed",
+};
+
+const truncateLabel = (text: string, maxLength: number = 35) => {
+  if (text.length <= maxLength) return text;
+  return text.substring(0, maxLength - 3) + "...";
+};
+
+const formatDate = (dateValue?: string) => {
+  if (!dateValue) return "";
+  return new Date(dateValue).toLocaleDateString();
+};
+
+const getApplicationStatus = (app: Application) => {
+  if (app.status && app.status !== "Applied") return app.status;
+  if (app.screening?.status) return app.screening.status;
+  return "Applied";
+};
+
+const getStageTone = (status: string) => {
+  if (status === "completed") return "border-emerald-500/20 bg-emerald-500/5";
+  if (status === "scheduled") return "border-primary/20 bg-primary/5";
+  if (status === "pending") return "border-amber-500/20 bg-amber-500/5";
+  if (status === "rejected") return "border-destructive/20 bg-destructive/5";
+  return "border-border/60 bg-muted/20";
+};
+
+const buildJourneyStages = (app: Application) => {
+  const screening = app.screening;
+  const applicationStatus = getApplicationStatus(app);
+  const assessmentPlan = app.assessment || app.job?.job_description?.assessment_plan?.map((step) => ({
+    testType: step.test_type,
+    coveredTopics: step.focus_topics,
+    suggestedDurationMinutes: step.suggested_duration_minutes,
+  })) || [];
+  const interviewPlan = app.interviews?.length ? app.interviews : app.job?.job_description?.interview_plan || [];
+
+  const stages: Array<{
+    key: string;
+    title: string;
+    detail: string;
+    status: keyof typeof stepStatusStyle;
+    label: string;
+  }> = [
+    {
+      key: "applied",
+      title: "Application Submitted",
+      detail: `Applied on ${formatDate(app.createdAt)}`,
+      status: "completed",
+      label: "Done",
+    },
+    {
+      key: "screening",
+      title: "Resume Screening",
+      detail: screening
+        ? `ATS ${screening.atsScore ?? "N/A"}% · ${screening.status || "Review complete"}`
+        : "Waiting for screening to complete",
+      status: screening
+        ? screening.status === "Not Shortlisted"
+          ? "rejected"
+          : "completed"
+        : "pending",
+      label: screening?.status || "Pending",
+    },
+  ];
+
+  assessmentPlan.forEach((step, index) => {
+    const savedStep = app.assessment?.[index];
+    const completed = Boolean(savedStep?.score != null || savedStep?.completedAt);
+    const locked = screening?.status === "Not Shortlisted" || applicationStatus === "Rejected";
+    const stageStatus = completed
+      ? "completed"
+      : locked
+        ? "locked"
+        : applicationStatus === "Interview Scheduled" || applicationStatus === "Offered"
+          ? "completed"
+          : screening?.status === "Shortlisted"
+            ? index === 0
+              ? "pending"
+              : "locked"
+            : "locked";
+
+    stages.push({
+      key: `assessment-${index}`,
+      title: `Assessment ${index + 1}`,
+      detail: step.testType || "Assessment stage",
+      status: stageStatus,
+      label: savedStep?.score != null ? `${savedStep.score}%` : (step.suggestedDurationMinutes ? `${step.suggestedDurationMinutes} min` : stepStatusLabel[stageStatus]),
+    });
+  });
+
+  interviewPlan.forEach((step, index) => {
+    const stageStatus = applicationStatus === "Interview Scheduled" || applicationStatus === "Offered"
+      ? "scheduled"
+      : screening?.status === "Shortlisted"
+        ? "pending"
+        : "locked";
+
+    // Show time duration, default to "60 min" if not available
+    const labelStr = "60 min";
+
+    stages.push({
+      key: `interview-${index}`,
+      title: `Interview ${index + 1}`,
+      detail: step.interview_round || "Interview stage",
+      status: stageStatus,
+      label: labelStr,
+    });
+  });
+
+  stages.push({
+    key: "decision",
+    title: "Final Decision",
+    detail: applicationStatus === "Offered"
+      ? "Offer ready"
+      : applicationStatus === "Rejected"
+        ? "Application closed"
+        : "Waiting for the next stage",
+    status: applicationStatus === "Offered"
+      ? "completed"
+      : applicationStatus === "Rejected"
+        ? "rejected"
+        : applicationStatus === "Interview Scheduled"
+          ? "scheduled"
+          : "pending",
+    label: applicationStatus,
+  });
+
+  return stages;
 };
 
 export default function MyApplications() {
-  const [expanded, setExpanded] = useState<number | null>(null);
+  const navigate = useNavigate();
+  const [applications, setApplications] = useState<Application[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const [retryingApplicationId, setRetryingApplicationId] = useState<string | null>(null);
 
-  const toggleExpand = (id: number) => setExpanded(prev => (prev === id ? null : id));
+  useEffect(() => {
+    api.get("/applications/my")
+      .then(({ data }) => setApplications(data))
+      .catch(() => toast.error("Failed to load applications"))
+      .finally(() => setLoading(false));
+  }, []);
 
-  return (
+  const toggleExpand = (id: string) =>
+    setExpanded(prev => (prev === id ? null : id));
+
+  if (loading) return (
+    <div className="flex items-center justify-center h-64">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+    </div>
+  );
+
+  if (applications.length === 0) return (
     <div>
-      <div className="mb-6 md:mb-8">
+      <div className="mb-6 mt-16 md:mt-3 md:mb-8">
         <h1 className="text-2xl md:text-3xl font-display font-bold">My Applications</h1>
         <p className="text-muted-foreground mt-1 text-sm md:text-base">Track your application progress</p>
       </div>
+      <div className="glass rounded-2xl p-12 text-center text-muted-foreground">
+        <FileText className="h-12 w-12 mx-auto mb-4 opacity-30" />
+        <p>No applications yet. Apply to a job first!</p>
+      </div>
+    </div>
+  );
+
+  return (
+    <div>
+      <div className="mb-6 mt-16 md:mt-3 md:mb-8">
+        <h1 className="text-2xl md:text-3xl font-display font-bold">My Applications</h1>
+        <p className="text-muted-foreground mt-1 text-sm md:text-base">Track your application progress</p>
+      </div>
+
       <div className="space-y-4">
         {applications.map((app, i) => {
-          const st = statusConfig[app.overallStatus];
-          const isOpen = expanded === app.id;
+          const currentStatus = getApplicationStatus(app);
+          const st = statusConfig[currentStatus] ?? statusConfig.Applied;
+          const isOpen = expanded === app._id;
+          const journeyStages = buildJourneyStages(app);
+
           return (
-            <div key={app.id} className="glass rounded-2xl overflow-hidden animate-fade-in" style={{ animationDelay: `${i * 0.05}s` }}>
-              {/* Header - clickable */}
+            <div
+              key={app._id}
+              className="glass rounded-2xl overflow-hidden animate-fade-in"
+              style={{ animationDelay: `${i * 0.05}s` }}
+            >
+              {/* Header */}
               <button
-                onClick={() => toggleExpand(app.id)}
+                onClick={() => toggleExpand(app._id)}
                 className="w-full text-left p-4 md:p-6 flex items-center gap-4 md:gap-6 glass-hover transition-colors"
               >
                 <div className="h-10 w-10 md:h-12 md:w-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
                   <FileText className="h-5 w-5 md:h-6 md:w-6 text-primary" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-display font-semibold text-base md:text-lg">{app.title}</h3>
-                  <p className="text-xs md:text-sm text-muted-foreground">{app.company} · Applied {app.appliedDate}</p>
+                  <h3 className="font-display font-semibold text-base md:text-lg">
+                    {app.job?.title ?? "Job"}
+                  </h3>
+                  <p className="text-xs md:text-sm text-muted-foreground">
+                    {app.job?.company} · Applied {new Date(app.createdAt).toLocaleDateString()}
+                  </p>
                   <div className="mt-2">
-                    <Progress value={app.progress} className="h-1.5 md:h-2" />
-                    <p className="text-xs text-muted-foreground mt-1">{app.progress}% complete</p>
+                    <Progress value={app.progress ?? 10} className="h-1.5 md:h-2" />
+                    <p className="text-xs text-muted-foreground mt-1">{app.progress ?? 10}% complete</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 md:gap-3 shrink-0">
@@ -174,11 +302,14 @@ export default function MyApplications() {
                     <st.icon className="h-3.5 w-3.5" />
                     {st.label}
                   </Badge>
-                  {isOpen ? <ChevronUp className="h-5 w-5 text-muted-foreground" /> : <ChevronDown className="h-5 w-5 text-muted-foreground" />}
+                  {isOpen
+                    ? <ChevronUp className="h-5 w-5 text-muted-foreground" />
+                    : <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                  }
                 </div>
               </button>
 
-              {/* Mobile status badge */}
+              {/* Mobile badge */}
               <div className="sm:hidden px-4 pb-2 -mt-2">
                 <Badge variant="outline" className={`gap-1.5 ${st.color}`}>
                   <st.icon className="h-3.5 w-3.5" />
@@ -186,129 +317,148 @@ export default function MyApplications() {
                 </Badge>
               </div>
 
-              {/* Expanded Content */}
+              {/* Expanded */}
               {isOpen && (
                 <div className="border-t border-border/50 p-4 md:p-6 space-y-6 animate-fade-in">
 
-                  {/* Assessments */}
+                  {/* Journey */}
                   <div>
-                    <div className="flex items-center gap-2 mb-3">
-                      <ClipboardCheck className="h-4 w-4 text-primary" />
-                      <h4 className="font-display font-semibold text-sm md:text-base">Assessments</h4>
-                    </div>
-                    <div className="space-y-2 md:space-y-3">
-                      {app.assessments.map((a, j) => (
-                        <div key={j} className="flex items-center gap-3 md:gap-4 p-3 md:p-4 rounded-xl bg-muted/30">
-                          <div className={`shrink-0 ${stepStatusStyle[a.status]}`}>
-                            {a.status === "completed" ? <CheckCircle className="h-4 w-4 md:h-5 md:w-5" /> : <Clock className="h-4 w-4 md:h-5 md:w-5" />}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium text-sm">{a.title}</p>
-                            <p className="text-xs text-muted-foreground capitalize">{a.type === "coding" ? "Coding Challenge" : "MCQ"}</p>
-                          </div>
-                          <div className="text-right shrink-0">
-                            {a.score != null ? (
-                              <span className={`font-display font-bold text-sm ${a.score >= 70 ? "text-emerald-500" : "text-destructive"}`}>{a.score}%</span>
-                            ) : (
-                              <Badge variant="secondary" className="text-xs capitalize">{a.status}</Badge>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+                      <div className="flex items-center gap-2">
+                        <ClipboardCheck className="h-4 w-4 text-primary" />
+                        <h4 className="font-display font-semibold text-sm md:text-base">Application Journey</h4>
+                      </div>
+                      {(() => {
+                        if (app.screening?.status !== "Shortlisted" && app.status !== "Interview Scheduled" && app.status !== "Assessment Pending") return null;
+                        if (app.status === "Rejected" || app.status === "Offered") return null;
 
-                  {/* Interviews */}
-                  <div>
-                    <div className="flex items-center gap-2 mb-3">
-                      <Video className="h-4 w-4 text-primary" />
-                      <h4 className="font-display font-semibold text-sm md:text-base">Interviews</h4>
-                    </div>
-                    <div className="space-y-2 md:space-y-3">
-                      {app.interviews.map((iv, j) => (
-                        <div key={j} className={`flex items-center gap-3 md:gap-4 p-3 md:p-4 rounded-xl bg-muted/30 ${iv.status === "locked" ? "opacity-50" : ""}`}>
-                          <div className={`shrink-0 ${stepStatusStyle[iv.status]}`}>
-                            {iv.status === "completed" ? <CheckCircle className="h-4 w-4 md:h-5 md:w-5" /> :
-                             iv.status === "scheduled" ? <AlertCircle className="h-4 w-4 md:h-5 md:w-5" /> :
-                             <Clock className="h-4 w-4 md:h-5 md:w-5" />}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium text-sm">{iv.title}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {iv.type === "ai" ? "AI Interview" : "Human Interview"}
-                              {iv.date && ` · ${iv.date}`}
-                            </p>
-                          </div>
-                          <div className="text-right shrink-0">
-                            {iv.score != null ? (
-                              <span className={`font-display font-bold text-sm ${iv.score >= 70 ? "text-emerald-500" : "text-destructive"}`}>{iv.score}%</span>
-                            ) : (
-                              <Badge variant="secondary" className="text-xs capitalize">{iv.status}</Badge>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+                        const assessments = app.assessment || app.assessments || [];
+                        const nextAssessmentIndex = assessments.findIndex((a: AssessmentStep | null) => !a?.score && !a?.completedAt);
+                        if (nextAssessmentIndex >= 0) {
+                          return (
+                            <Button size="sm" className="w-full sm:w-auto glow-primary-sm gap-2" onClick={() => navigate(`/candidate/applications/${app._id}/assessment/${nextAssessmentIndex}`)}>
+                              Next Stage: Start Assessment {nextAssessmentIndex + 1}
+                            </Button>
+                          );
+                        }
 
-                  {/* Document Verification */}
-                  <div>
-                    <div className="flex items-center gap-2 mb-3">
-                      <FileCheck className="h-4 w-4 text-primary" />
-                      <h4 className="font-display font-semibold text-sm md:text-base">Document Verification</h4>
-                      {app.docsVerified && <Badge className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20 text-xs ml-auto">Verified</Badge>}
+                        const interviews = app.interviews || [];
+                        const nextInterviewIndex = interviews.findIndex((i: InterviewStep) => {
+                          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                          const status = (i as any)?.status;
+                          return !status || status === "pending" || status === "scheduled";
+                        });
+                        if (nextInterviewIndex >= 0) {
+                          return (
+                            <Button size="sm" className="w-full sm:w-auto glow-primary-sm gap-2" onClick={() => navigate(`/candidate/applications/${app._id}/interview/${nextInterviewIndex}`)}>
+                              Next Stage: Join Interview {nextInterviewIndex + 1}
+                            </Button>
+                          );
+                        }
+                        return null;
+                      })()}
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      {app.docsRequired.map(doc => {
-                        const submitted = app.docsSubmitted.includes(doc);
-                        return (
-                          <div key={doc} className="flex items-center gap-3 p-3 rounded-xl bg-muted/30">
-                            <div className={submitted ? "text-emerald-500" : "text-muted-foreground"}>
-                              {submitted ? <CheckCircle className="h-4 w-4" /> : <Clock className="h-4 w-4" />}
+                    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                      {journeyStages.map((stage) => (
+                        <div key={stage.key} className={`rounded-xl border p-4 ${getStageTone(stage.status)}`}>
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2">
+                                <div className={stepStatusStyle[stage.status]}>
+                                  {stage.status === "completed" ? <CheckCircle className="h-4 w-4" /> : stage.status === "scheduled" ? <AlertCircle className="h-4 w-4" /> : <Clock className="h-4 w-4" />}
+                                </div>
+                                <p className="font-medium text-sm">{stage.title}</p>
+                              </div>
+                              <p className="text-xs text-muted-foreground mt-2">{stage.detail}</p>
                             </div>
-                            <span className="text-sm">{doc}</span>
-                            {submitted && <Badge variant="secondary" className="text-xs ml-auto">Submitted</Badge>}
+                            <Badge variant="secondary" className="text-[11px] shrink-0 max-w-xs truncate">
+                              {stage.label}
+                            </Badge>
                           </div>
-                        );
-                      })}
+                        </div>
+                      ))}
                     </div>
                   </div>
 
-                  {/* Team Allocation */}
-                  {app.teamAllocated && (
-                    <div>
-                      <div className="flex items-center gap-2 mb-3">
-                        <Users className="h-4 w-4 text-primary" />
-                        <h4 className="font-display font-semibold text-sm md:text-base">Team Allocation</h4>
-                      </div>
-                      <div className="p-3 md:p-4 rounded-xl bg-muted/30 flex items-center gap-3">
-                        <div className="h-9 w-9 rounded-xl bg-primary/10 flex items-center justify-center">
-                          <Award className="h-4 w-4 text-primary" />
-                        </div>
+                  {/* Retry Resume */}
+                  {(app.screening?.status === "Not Shortlisted" || app.status === "Rejected") && (
+                    <div className="rounded-2xl border border-border/60 bg-background/60 p-5 md:p-6 space-y-4">
+                      {(!app.screening?.attempts || app.screening.attempts < 3) ? (
                         <div>
-                          <p className="font-medium text-sm">Assigned to <span className="text-primary">{app.teamAllocated}</span> team</p>
-                          <p className="text-xs text-muted-foreground">You'll be onboarded after accepting the offer</p>
+                          <h3 className="font-semibold text-sm mb-2">Try Again with Another Resume</h3>
+                          <p className="text-xs text-muted-foreground mb-4">
+                            You can upload a different resume and re-apply for this position. (Attempt {app.screening?.attempts || 1} of 3)
+                          </p>
+                          <div className="space-y-2">
+                            <input
+                              type="file"
+                              accept="application/pdf,.docx,.txt"
+                              onChange={async (e) => {
+                                const file = e.currentTarget.files?.[0];
+                                if (!file) return;
+  
+                                try {
+                                  setRetryingApplicationId(app._id);
+                                  const payload = new FormData();
+                                  payload.append("resume", file);
+                                  
+                                  const cacheKey = `resume_cache_${file.name}_${file.size}_${file.lastModified}`;
+                                  const cached = localStorage.getItem(cacheKey);
+                                  if (cached) {
+                                    payload.append("cachedParsedResume", cached);
+                                  }
+  
+                                  const { data } = await api.post(`/applications/${app.job._id}`, payload, {
+                                    headers: { "Content-Type": "multipart/form-data" },
+                                  });
+  
+                                  if (data.screening?.parsedResume) {
+                                    localStorage.setItem(cacheKey, JSON.stringify(data.screening.parsedResume));
+                                  }
+  
+                                  if (data.screening?.status === "Shortlisted") {
+                                    toast.success("Great! You've been shortlisted with the new resume! 🎉");
+                                  } else {
+                                    toast.info("The new resume didn't pass screening. You can try again.");
+                                  }
+  
+                                  const { data: updatedApps } = await api.get("/applications/my");
+                                  setApplications(updatedApps);
+                                } catch (error) {
+                                  let errorMessage = "Failed to upload resume. Please try again.";
+                                  if (error instanceof Error) {
+                                    errorMessage = error.message;
+                                  } else if (error && typeof error === "object" && "response" in error) {
+                                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                                    const resp = (error as any).response;
+                                    errorMessage = resp?.data?.message || errorMessage;
+                                  }
+                                  toast.error(errorMessage);
+                                  const { data: updatedApps } = await api.get("/applications/my");
+                                  setApplications(updatedApps);
+                                } finally {
+                                  setRetryingApplicationId(null);
+                                }
+                              }}
+                              disabled={retryingApplicationId === app._id}
+                              className="cursor-pointer w-full"
+                            />
+                            {retryingApplicationId === app._id && (
+                              <p className="text-xs text-muted-foreground">Uploading...</p>
+                            )}
+                          </div>
                         </div>
-                      </div>
+                      ) : (
+                        <div>
+                          <h3 className="font-semibold text-sm mb-1 text-destructive">Maximum Attempts Reached</h3>
+                          <p className="text-xs text-muted-foreground">
+                            You have exhausted all 3 attempts to clear the resume screening for this job.
+                          </p>
+                        </div>
+                      )}
                     </div>
                   )}
 
-                  {/* Offer Letter */}
-                  {app.offerAvailable && (
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/20">
-                      <div className="flex items-center gap-3 flex-1">
-                        <CheckCircle className="h-5 w-5 text-emerald-500 shrink-0" />
-                        <div>
-                          <p className="font-display font-semibold text-sm">Offer Letter Available! 🎉</p>
-                          <p className="text-xs text-muted-foreground">Congratulations! Download and review your offer.</p>
-                        </div>
-                      </div>
-                      <Button size="sm" className="glow-primary-sm gap-2 w-full sm:w-auto">
-                        <Download className="h-4 w-4" />
-                        Download Offer
-                      </Button>
-                    </div>
-                  )}
                 </div>
               )}
             </div>

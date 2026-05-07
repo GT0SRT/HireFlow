@@ -1,11 +1,14 @@
 import { useState } from "react";
 import { Outlet, Link, useLocation } from "react-router-dom";
-import { Zap, LayoutDashboard, Sun, Moon, LogOut, Menu, X } from "lucide-react";
+import { Zap, LayoutDashboard, Sun, Moon, LogOut, Menu, X, Users, Trash2, UserCircle2 } from "lucide-react";
 import { useTheme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 
 const links = [
   { to: "/hr/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { to: "/hr/jobs", label: "Current Openings", icon: Users },
+  { to: "/hr/jobs/ended", label: "Ended Openings", icon: Trash2 },
+  { to: "/hr/profile", label: "Company Profile", icon: UserCircle2 },
 ];
 
 export default function HRLayout() {

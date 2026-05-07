@@ -1,12 +1,11 @@
 import { useState } from "react";
-import type { ChangeEvent } from "react";
-import { X, ChevronLeft, ChevronRight, Plus, Trash2 } from "lucide-react";
+import type { Dispatch, SetStateAction } from "react";
+import { X, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -14,30 +13,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { AutocompleteInput } from "@/components/ui/autocomplete-input";
 import { toast } from "sonner";
+import api from "@/api/api";
+import keywordsData from "@/lib/keywords.json";
+import { generateJobDescription, type AIGeneratedJD } from "@/lib/ai-service";
 
-const STEPS = ["Job Details", "Assessments", "Interviews", "Documents", "Team Allocation"];
+const STEPS = ["Job Details", "HR Internal Plans"];
 
-interface Assessment {
+interface BaseInfo {
   title: string;
-  difficulty: string;
-  numQuestions: string;
-  topics: string;
-  isCoding: boolean;
-}
-
-interface Interview {
-  title: string;
-  topics: string;
-  difficulty: string;
-  isAI: boolean;
-  meetingLink: string;
-}
-
-interface StepDocumentsProps {
-  docs: Record<string, boolean>;
-  setDocs: (docs: Record<string, boolean>) => void;
-  options: string[];
+  location: string;
+  type: "Full-time" | "Part-time" | "Contract" | "Internship";
+  notes: string;
+  jobNumber?: string;
 }
 
 interface CreateJobWizardProps {
@@ -46,66 +35,62 @@ interface CreateJobWizardProps {
 
 export default function CreateJobWizard({ onClose }: CreateJobWizardProps) {
   const [step, setStep] = useState(0);
-  const [assessments, setAssessments] = useState<Assessment[]>([]);
-  const [interviews, setInterviews] = useState<Interview[]>([]);
-  const [docs, setDocs] = useState<Record<string, boolean>>({});
+  const [publishing, setPublishing] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const [baseInfo, setBaseInfo] = useState<BaseInfo>({
+    title: "",
+    location: "Remote",
+    type: "Full-time",
+    notes: "",
+  });
+  
+  const [generatedJD, setGeneratedJD] = useState<AIGeneratedJD | null>(null);
 
-  const addAssessment = () =>
-    setAssessments((p) => [
-      ...p,
-      { title: "", difficulty: "medium", numQuestions: "", topics: "", isCoding: false },
-    ]);
+  const handleGenerate = async () => {
+    if (!baseInfo.title.trim()) {
+      toast.error("Please enter a Job Title before generating.");
+      return;
+    }
 
-  const removeAssessment = (i: number) =>
-    setAssessments((p) => p.filter((_, idx) => idx !== i));
-
-  const updateAssessment = (
-    i: number,
-    field: keyof Assessment,
-    val: string | boolean
-  ) => {
-    setAssessments((p) =>
-      p.map((a, idx) => (idx === i ? { ...a, [field]: val } : a))
-    );
+    setGenerating(true);
+    try {
+      const data = await generateJobDescription(baseInfo.title, baseInfo.notes);
+      setGeneratedJD(data);
+      toast.success("Job description generated successfully!");
+    } catch {
+      toast.error("something went wrong");
+    } finally {
+      setGenerating(false);
+    }
   };
 
-  const addInterview = () =>
-    setInterviews((p) => [
-      ...p,
-      { title: "", topics: "", difficulty: "medium", isAI: true, meetingLink: "" },
-    ]);
+  const handlePublish = async () => {
+    if (!generatedJD) return;
 
-  const removeInterview = (i: number) =>
-    setInterviews((p) => p.filter((_, idx) => idx !== i));
+    try {
+      setPublishing(true);
+      await api.post("/jobs", {
+        title: baseInfo.title.trim(),
+        location: baseInfo.location.trim() || "Remote",
+        type: baseInfo.type,
+        job_description: generatedJD
+      });
 
-  const updateInterview = (
-    i: number,
-    field: keyof Interview,
-    val: string | boolean
-  ) => {
-    setInterviews((p) =>
-      p.map((a, idx) => (idx === i ? { ...a, [field]: val } : a))
-    );
-  };
-
-  const docOptions = [
-    "Aadhaar Card",
-    "PAN Card",
-    "10th Marksheet",
-    "12th Marksheet",
-    "Degree Certificate",
-    "Experience Letter",
-    "Passport",
-  ];
-
-  const handlePublish = () => {
-    toast.success("Recruitment published successfully!");
-    onClose();
+      toast.success("Job published successfully");
+      onClose();
+    } catch (error: unknown) {
+      const message =
+        (error as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+        "Failed to publish job";
+      toast.error(message);
+    } finally {
+      setPublishing(false);
+    }
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="relative bg-card border border-border rounded-2xl shadow-xl w-full max-w-3xl max-h-[90vh] flex flex-col">
+      <div className="relative bg-card border border-border rounded-2xl shadow-xl w-full max-w-3xl max-h-[90vh] flex flex-col text-left">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-border/50">
           <div>
@@ -138,27 +123,19 @@ export default function CreateJobWizard({ onClose }: CreateJobWizardProps) {
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6 space-y-5">
-          {step === 0 && <StepJobDetails />}
-          {step === 1 && (
-            <StepAssessments
-              assessments={assessments}
-              onAdd={addAssessment}
-              onRemove={removeAssessment}
-              onUpdate={updateAssessment}
+          {step === 0 && (
+            <StepInitialDetails 
+              info={baseInfo} 
+              setInfo={setBaseInfo} 
+              jobTitles={keywordsData.jobTitles} 
+              locations={keywordsData.locations || []}
+              generatedJD={generatedJD}
+              setGeneratedJD={setGeneratedJD}
             />
           )}
-          {step === 2 && (
-            <StepInterviews
-              interviews={interviews}
-              onAdd={addInterview}
-              onRemove={removeInterview}
-              onUpdate={updateInterview}
-            />
+          {step === 1 && generatedJD && (
+            <StepReviewPlans jd={generatedJD} setJD={setGeneratedJD} />
           )}
-          {step === 3 && (
-            <StepDocuments docs={docs} setDocs={setDocs} options={docOptions} />
-          )}
-          {step === 4 && <StepTeamAllocation />}
         </div>
 
         {/* Footer */}
@@ -172,14 +149,25 @@ export default function CreateJobWizard({ onClose }: CreateJobWizardProps) {
             {step === 0 ? "Cancel" : "Back"}
           </Button>
 
-          {step < STEPS.length - 1 ? (
+          {step === 0 ? (
+          !generatedJD ? (
+            <Button onClick={handleGenerate} disabled={generating} className="glow-primary gap-2">
+              {generating ? "thinking..." : "Generate"}
+            </Button>
+          ) : (
+            <Button onClick={() => setStep(1)} className="gap-2 glow-primary-sm">
+              Next
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          )
+          ) : step < STEPS.length - 1 ? (
             <Button onClick={() => setStep(step + 1)} className="gap-2 glow-primary-sm">
               Next
               <ChevronRight className="h-4 w-4" />
             </Button>
           ) : (
-            <Button onClick={handlePublish} className="glow-primary gap-2">
-              Publish Recruitment
+            <Button onClick={handlePublish} className="glow-primary gap-2 bg-emerald-600 hover:bg-emerald-700" disabled={publishing}>
+              {publishing ? "Publishing..." : "Publish Job to Board"}
             </Button>
           )}
         </div>
@@ -190,370 +178,372 @@ export default function CreateJobWizard({ onClose }: CreateJobWizardProps) {
 
 /* ------------------ Step Components ------------------ */
 
-function StepJobDetails() {
+function StepInitialDetails({
+  info,
+  setInfo,
+  jobTitles,
+  locations,
+  generatedJD,
+  setGeneratedJD
+}: {
+  info: BaseInfo;
+  setInfo: Dispatch<SetStateAction<BaseInfo>>;
+  jobTitles: string[];
+  locations: string[];
+  generatedJD: AIGeneratedJD | null;
+  setGeneratedJD: Dispatch<SetStateAction<AIGeneratedJD | null>>;
+}) {
+  const [showJobNumber, setShowJobNumber] = useState(!!info.jobNumber);
+  const [isEditingJD, setIsEditingJD] = useState(false);
+
+  const updateField = <K extends keyof AIGeneratedJD>(field: K, value: AIGeneratedJD[K]) => {
+    setGeneratedJD((prev) => (prev ? { ...prev, [field]: value } : prev));
+  };
+
+  const updateArray = (field: keyof AIGeneratedJD, value: string, separator: string = ",") => {
+    const arr = value.split(separator).map(s => s.trim()).filter(Boolean);
+    setGeneratedJD(prev => prev ? { ...prev, [field]: arr } : prev);
+  };
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 text-left">
       <div>
         <Label>Job Title</Label>
-        <Input
+        <AutocompleteInput
           placeholder="e.g. Senior Frontend Developer"
-          className="mt-1.5 glass"
+          className="mt-1.5"
+          value={info.title}
+          onChange={(val) => setInfo((prev) => ({ ...prev, title: val }))}
+          suggestions={jobTitles}
+          isSingleSelect
         />
       </div>
 
-      <div>
-        <Label>Job Description</Label>
-        <Textarea
-          placeholder="Describe the role..."
-          className="mt-1.5 glass"
-          rows={4}
-        />
-      </div>
-
-      <div>
-        <Label>Required Skills</Label>
-        <Input
-          placeholder="React, TypeScript, Node.js"
-          className="mt-1.5 glass"
-        />
-      </div>
-
-      <div>
-        <Label>Requirements</Label>
-        <Textarea
-          placeholder="List the requirements..."
-          className="mt-1.5 glass"
-          rows={3}
-        />
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <Label>Last Date to Apply</Label>
-          <Input type="date" className="mt-1.5 glass" />
+          <Label>Location</Label>
+          <AutocompleteInput
+            placeholder="e.g. Bengaluru"
+            className="mt-1.5"
+            value={info.location}
+            onChange={(val) => setInfo((prev) => ({ ...prev, location: val }))}
+            suggestions={locations}
+            isSingleSelect
+          />
         </div>
-
         <div>
-          <Label>Experience Level</Label>
-          <Select>
+          <Label>Employment Type</Label>
+          <Select
+            value={info.type}
+            onValueChange={(v: BaseInfo["type"]) => setInfo((prev) => ({ ...prev, type: v }))}
+          >
             <SelectTrigger className="mt-1.5 glass">
-              <SelectValue placeholder="Select level" />
+              <SelectValue placeholder="Select type" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="entry">Entry Level</SelectItem>
-              <SelectItem value="mid">Mid Level</SelectItem>
-              <SelectItem value="senior">Senior Level</SelectItem>
-              <SelectItem value="lead">Lead / Principal</SelectItem>
+              <SelectItem value="Full-time">Full-time</SelectItem>
+              <SelectItem value="Part-time">Part-time</SelectItem>
+              <SelectItem value="Contract">Contract</SelectItem>
+              <SelectItem value="Internship">Internship</SelectItem>
             </SelectContent>
           </Select>
         </div>
       </div>
 
-      <div>
-        <Label>Qualification</Label>
-        <Select>
-          <SelectTrigger className="mt-1.5 glass">
-            <SelectValue placeholder="Select qualification" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="bachelor">Bachelor's Degree</SelectItem>
-            <SelectItem value="master">Master's Degree</SelectItem>
-            <SelectItem value="phd">PhD</SelectItem>
-            <SelectItem value="any">Any</SelectItem>
-          </SelectContent>
-        </Select>
+      <div className="pt-2">
+        <Label className="flex items-center gap-2 cursor-pointer w-fit">
+          <input
+            type="checkbox"
+            checked={showJobNumber}
+            onChange={(e) => {
+              setShowJobNumber(e.target.checked);
+              if (!e.target.checked) setInfo((prev) => ({ ...prev, jobNumber: "" }));
+            }}
+            className="rounded border-border text-primary focus:ring-primary"
+          />
+          <span>Add a custom Job Reference / ID (Optional)</span>
+        </Label>
+        {showJobNumber && (
+          <Input
+            placeholder="e.g. REQ-2026-001"
+            className="mt-2 glass max-w-sm"
+            value={info.jobNumber}
+            onChange={(e) => setInfo((prev) => ({ ...prev, jobNumber: e.target.value }))}
+          />
+        )}
+      </div>
+
+      <div className="pt-4 mt-2 border-t border-border/50">
+        {!generatedJD ? (
+          <div className="animate-fade-in">
+            <div className="flex items-center justify-between mb-1.5">
+              <Label className="text-base font-semibold">Description (Optional)</Label>
+            </div>
+            <Textarea
+              placeholder="Please enter Job Description or prompt for AI. E.g. 'Looking for a frontend engineer with 3 years experience in React and TypeScript. Should be able to write unit tests and work in an agile team.'"
+              className="glass"
+              rows={6}
+              value={info.notes}
+              onChange={(e) => setInfo((prev) => ({ ...prev, notes: e.target.value }))}
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              Tip: Just list the core technologies, years of experience, and any special test you want.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-4 animate-fade-in">
+            <div className="flex items-center justify-between">
+              <Label className="text-base font-semibold">AI Generated Job Description</Label>
+              <Button variant="outline" size="sm" onClick={() => setIsEditingJD(!isEditingJD)} className="text-xs h-8">
+                {isEditingJD ? "Done Editing" : "Edit Details"}
+              </Button>
+            </div>
+
+            <div className="glass p-6 rounded-xl border-primary/20 space-y-5 relative bg-gradient-to-b from-primary/5 to-transparent">
+              <div className="absolute top-4 right-4">
+                 <Badge variant="default" className="bg-primary/20 text-primary border-primary/30">✨ AI Optimized</Badge>
+              </div>
+              
+              <div className="space-y-1.5">
+                 <Label className="text-[10px] text-primary font-bold uppercase tracking-widest">Standardized Role</Label>
+                 {isEditingJD ? (
+                   <Input 
+                      value={generatedJD.primary_role || ""} 
+                      onChange={e => updateField("primary_role", e.target.value)} 
+                      className="text-xl font-bold bg-background/50 border-transparent hover:border-border focus:border-border shadow-sm h-12" 
+                   />
+                 ) : (
+                   <p className="text-xl font-bold pt-1">{generatedJD.primary_role}</p>
+                 )}
+              </div>
+
+              <div className="space-y-1.5">
+                 <Label className="text-[10px] text-primary font-bold uppercase tracking-widest">Job Summary</Label>
+                 {isEditingJD ? (
+                   <Textarea 
+                      value={generatedJD.job_summary || ""} 
+                      onChange={e => updateField("job_summary", e.target.value)} 
+                      className="bg-background/50 border-transparent hover:border-border focus:border-border shadow-sm leading-relaxed resize-none text-muted-foreground" 
+                      rows={3} 
+                   />
+                 ) : (
+                   <p className="leading-relaxed text-muted-foreground pt-1">{generatedJD.job_summary}</p>
+                 )}
+              </div>
+              <div className="space-y-1.5">
+                 <Label className="text-[10px] text-primary font-bold uppercase tracking-widest">What to Expect (Candidate)</Label>
+                 {isEditingJD ? (
+                   <Textarea
+                     value={generatedJD.test_description || ""}
+                     onChange={e => updateField("test_description", e.target.value)}
+                     className="bg-background/50 border-transparent hover:border-border focus:border-border shadow-sm leading-relaxed resize-none text-muted-foreground"
+                     rows={3}
+                   />
+                 ) : (
+                   <p className="leading-relaxed text-muted-foreground pt-1 whitespace-pre-wrap">{generatedJD.test_description}</p>
+                 )}
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                 <div className="space-y-1.5">
+                     <Label className="text-[10px] text-primary font-bold uppercase tracking-widest">Experience Required</Label>
+                     {isEditingJD ? (
+                       <Input 
+                          value={generatedJD.experience_years || ""} 
+                          onChange={e => updateField("experience_years", e.target.value)} 
+                          className="bg-background/50 border-transparent hover:border-border focus:border-border shadow-sm text-sm" 
+                       />
+                     ) : (
+                       <p className="text-sm pt-1">{generatedJD.experience_years}</p>
+                     )}
+                 </div>
+                 <div className="space-y-1.5">
+                     <Label className="text-[10px] text-primary font-bold uppercase tracking-widest">Mandatory Skills (Comma separated)</Label>
+                     {isEditingJD ? (
+                       <Input 
+                          value={generatedJD.mandatory_technical_skills?.join(", ") || ""} 
+                          onChange={e => updateArray("mandatory_technical_skills", e.target.value)} 
+                          className="bg-background/50 border-transparent hover:border-border focus:border-border shadow-sm text-sm" 
+                       />
+                     ) : (
+                       <div className="flex flex-wrap gap-1.5 pt-1">
+                         {generatedJD.mandatory_technical_skills?.map(skill => (
+                           <Badge key={skill} variant="secondary" className="bg-primary/10 hover:bg-primary/20 text-primary border-primary/20">{skill}</Badge>
+                         ))}
+                       </div>
+                     )}
+                 </div>
+              </div>
+
+              <div className="space-y-1.5">
+                 <Label className="text-[10px] text-primary font-bold uppercase tracking-widest">Key Responsibilities</Label>
+                 {isEditingJD ? (
+                   <Textarea 
+                      value={generatedJD.key_responsibilities?.join("\n") || ""} 
+                      onChange={e => updateArray("key_responsibilities", e.target.value, "\n")} 
+                      className="bg-background/50 border-transparent hover:border-border focus:border-border shadow-sm leading-relaxed text-sm resize-none" 
+                      rows={5} 
+                   />
+                 ) : (
+                   <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground pt-1">
+                     {generatedJD.key_responsibilities?.map((resp, i) => (
+                       <li key={i}>{resp}</li>
+                     ))}
+                   </ul>
+                 )}
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] text-primary font-bold uppercase tracking-widest">Key Requirements</Label>
+                  {isEditingJD ? (
+                    <Textarea
+                      value={generatedJD.mandatory_technical_skills?.join("\n") || ""}
+                      onChange={e => updateArray("mandatory_technical_skills", e.target.value, "\n")}
+                      className="bg-background/50 border-transparent hover:border-border focus:border-border shadow-sm leading-relaxed text-sm resize-none"
+                      rows={4}
+                    />
+                  ) : (
+                    <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground pt-1">
+                      {generatedJD.mandatory_technical_skills?.map((skill, i) => (
+                        <li key={i}>{skill}</li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] text-primary font-bold uppercase tracking-widest">Additional Requirements</Label>
+                  {isEditingJD ? (
+                    <Textarea
+                      value={generatedJD.requirements?.join("\n") || ""}
+                      onChange={e => updateArray("requirements", e.target.value, "\n")}
+                      className="bg-background/50 border-transparent hover:border-border focus:border-border shadow-sm leading-relaxed text-sm resize-none"
+                      rows={4}
+                    />
+                  ) : (
+                    <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground pt-1">
+                      {generatedJD.requirements?.map((req, i) => (
+                        <li key={i}>{req}</li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
-/* ---------------- Assessments Step ---------------- */
+function StepReviewPlans({ jd, setJD }: { jd: AIGeneratedJD, setJD: Dispatch<SetStateAction<AIGeneratedJD | null>> }) {
+  const [isEditingPlans, setIsEditingPlans] = useState(false);
 
-function StepAssessments({
-  assessments,
-  onAdd,
-  onRemove,
-  onUpdate,
-}: {
-  assessments: Assessment[];
-  onAdd: () => void;
-  onRemove: (i: number) => void;
-  onUpdate: (i: number, f: keyof Assessment, v: string | boolean) => void;
-}) {
   return (
-    <div className="space-y-4">
-      <p className="text-sm text-muted-foreground">
-        Add assessments that candidates must complete.
-      </p>
+    <div className="space-y-6 animate-fade-in text-left">
+      <div className="flex items-center justify-between -mb-2">
+        <Label className="text-base font-semibold">AI Evaluation Plans</Label>
+        <Button variant="outline" size="sm" onClick={() => setIsEditingPlans(!isEditingPlans)} className="text-xs h-8">
+          {isEditingPlans ? "Done Editing" : "Edit Plans"}
+        </Button>
+      </div>
 
-      {assessments.map((a, i) => (
-        <div key={i} className="glass rounded-xl p-5 space-y-4 animate-fade-in">
-          <div className="flex items-center justify-between">
-            <h4 className="font-display font-semibold">Assessment {i + 1}</h4>
-            <button
-              onClick={() => onRemove(i)}
-              className="p-1.5 rounded-lg hover:bg-destructive/10 text-destructive transition-colors"
-            >
-              <Trash2 className="h-4 w-4" />
-            </button>
-          </div>
-
-          <div>
-            <Label>Assessment Title</Label>
-            <Input
-              value={a.title}
-              onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                onUpdate(i, "title", e.target.value)
-              }
-              className="mt-1.5 glass"
-              placeholder="e.g. JavaScript Fundamentals"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label>Difficulty Level</Label>
-              <Select
-                value={a.difficulty}
-                onValueChange={(v: string) => onUpdate(i, "difficulty", v)}
-              >
-                <SelectTrigger className="mt-1.5 glass">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="easy">Easy</SelectItem>
-                  <SelectItem value="medium">Medium</SelectItem>
-                  <SelectItem value="hard">Hard</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <Label>Number of Questions</Label>
-              <Input
-                type="number"
-                value={a.numQuestions}
-                onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                  onUpdate(i, "numQuestions", e.target.value)
-                }
-                className="mt-1.5 glass"
-                placeholder="10"
-              />
-            </div>
-          </div>
-
-          <div>
-            <Label>Topics (comma separated)</Label>
-            <Input
-              value={a.topics}
-              onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                onUpdate(i, "topics", e.target.value)
-              }
-              className="mt-1.5 glass"
-              placeholder="Arrays, Closures, Promises"
-            />
-          </div>
-
-          <div className="flex items-center gap-3">
-            <Switch
-              checked={a.isCoding}
-              onCheckedChange={(v: boolean) => onUpdate(i, "isCoding", v)}
-            />
-            <Label>Is this a Coding Assessment?</Label>
-          </div>
-        </div>
-      ))}
-
-      <Button
-        variant="outline"
-        onClick={onAdd}
-        className="w-full gap-2 border-dashed border-2"
-      >
-        <Plus className="h-4 w-4" />
-        Add Assessment
-      </Button>
-    </div>
-  );
-}
-
-/* ---------------- Interviews Step ---------------- */
-
-function StepInterviews({
-  interviews,
-  onAdd,
-  onRemove,
-  onUpdate,
-}: {
-  interviews: Interview[];
-  onAdd: () => void;
-  onRemove: (i: number) => void;
-  onUpdate: (i: number, f: keyof Interview, v: string | boolean) => void;
-}) {
-  return (
-    <div className="space-y-4">
-      <p className="text-sm text-muted-foreground">
-        Configure interview rounds for this position.
-      </p>
-
-      {interviews.map((iv, i) => (
-        <div key={i} className="glass rounded-xl p-5 space-y-4 animate-fade-in">
-          <div className="flex items-center justify-between">
-            <h4 className="font-display font-semibold">
-              Interview Round {i + 1}
-            </h4>
-
-            <button
-              onClick={() => onRemove(i)}
-              className="p-1.5 rounded-lg hover:bg-destructive/10 text-destructive transition-colors"
-            >
-              <Trash2 className="h-4 w-4" />
-            </button>
-          </div>
-
-          <div>
-            <Label>Interview Title</Label>
-            <Input
-              value={iv.title}
-              onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                onUpdate(i, "title", e.target.value)
-              }
-              className="mt-1.5 glass"
-              placeholder="e.g. Technical Round 1"
-            />
-          </div>
-
-          <div>
-            <Label>Topics</Label>
-            <Input
-              value={iv.topics}
-              onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                onUpdate(i, "topics", e.target.value)
-              }
-              className="mt-1.5 glass"
-              placeholder="System Design, DSA"
-            />
-          </div>
-
-          <div>
-            <Label>Difficulty Level</Label>
-            <Select
-              value={iv.difficulty}
-              onValueChange={(v: string) => onUpdate(i, "difficulty", v)}
-            >
-              <SelectTrigger className="mt-1.5 glass">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="easy">Easy</SelectItem>
-                <SelectItem value="medium">Medium</SelectItem>
-                <SelectItem value="hard">Hard</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <Switch
-              checked={iv.isAI}
-              onCheckedChange={(v: boolean) => onUpdate(i, "isAI", v)}
-            />
-            <Label>{iv.isAI ? "AI Interview" : "Human Interview"}</Label>
-          </div>
-
-          {!iv.isAI && (
-            <div className="animate-fade-in">
-              <Label>Meeting Link</Label>
-              <Input
-                value={iv.meetingLink}
-                onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                  onUpdate(i, "meetingLink", e.target.value)
-                }
-                className="mt-1.5 glass"
-                placeholder="https://meet.google.com/..."
-              />
-            </div>
-          )}
-        </div>
-      ))}
-
-      <Button
-        variant="outline"
-        onClick={onAdd}
-        className="w-full gap-2 border-dashed border-2"
-      >
-        <Plus className="h-4 w-4" />
-        Add Interview Round
-      </Button>
-    </div>
-  );
-}
-
-/* ---------------- Documents Step ---------------- */
-
-function StepDocuments({ docs, setDocs, options }: StepDocumentsProps) {
-  return (
-    <div className="space-y-4">
-      <p className="text-sm text-muted-foreground">
-        Select which documents are required before extending an offer.
-      </p>
-
-      <div className="glass rounded-xl p-5 space-y-4">
-        {options.map((doc) => (
-          <div key={doc} className="flex items-center gap-3">
-            <Checkbox
-              checked={docs[doc] || false}
-              onCheckedChange={(v: boolean | "indeterminate") =>
-                setDocs({ ...docs, [doc]: !!v })
-              }
-            />
-            <Label className="cursor-pointer">{doc}</Label>
+      <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-4">
+        <h3 className="text-sm uppercase tracking-wider font-semibold text-amber-500 mb-4 flex items-center gap-2">
+          Internal Assessment Plan
+        </h3>
+        {(!jd.assessment_plan || jd.assessment_plan.length === 0) && (
+          <p className="text-sm text-muted-foreground">No assessments generated for this role.</p>
+        )}
+        {jd.assessment_plan?.map((test, i) => (
+          <div key={i} className="glass rounded-lg p-4 mb-3 border border-border/50">
+             <div className="grid grid-cols-2 gap-4 mb-3">
+                <div>
+                   <Label className="text-xs">Test Type</Label>
+                   {isEditingPlans ? (
+                     <Input value={test.test_type || ""} onChange={e => {
+                        const newPlan = [...(jd.assessment_plan || [])];
+                        newPlan[i].test_type = e.target.value;
+                        setJD({...jd, assessment_plan: newPlan});
+                     }} className="mt-1 h-8 text-sm glass" />
+                   ) : (
+                     <p className="text-sm font-medium mt-1">{test.test_type}</p>
+                   )}
+                </div>
+                <div>
+                   <Label className="text-xs">Duration (Minutes)</Label>
+                   {isEditingPlans ? (
+                     <Input type="number" value={test.suggested_duration_minutes || 30} onChange={e => {
+                        const newPlan = [...(jd.assessment_plan || [])];
+                        newPlan[i].suggested_duration_minutes = Number(e.target.value);
+                        setJD({...jd, assessment_plan: newPlan});
+                     }} className="mt-1 h-8 text-sm glass" />
+                   ) : (
+                     <p className="text-sm font-medium mt-1">{test.suggested_duration_minutes}m</p>
+                   )}
+                </div>
+             </div>
+             <div>
+                <Label className="text-xs">Topics</Label>
+                {isEditingPlans ? (
+                  <Input value={test.focus_topics?.join(", ") || ""} onChange={e => {
+                      const newPlan = [...(jd.assessment_plan || [])];
+                      newPlan[i].focus_topics = e.target.value.split(",").map(s => s.trim()).filter(Boolean);
+                      setJD({...jd, assessment_plan: newPlan});
+                  }} className="mt-1 h-8 text-sm glass" />
+                ) : (
+                  <div className="flex flex-wrap gap-1.5 mt-1.5">
+                    {test.focus_topics?.map(topic => (
+                      <Badge key={topic} variant="outline" className="text-xs">{topic}</Badge>
+                    ))}
+                  </div>
+                )}
+             </div>
           </div>
         ))}
       </div>
-    </div>
-  );
-}
 
-/* ---------------- Team Allocation Step ---------------- */
-
-function StepTeamAllocation() {
-  return (
-    <div className="space-y-4">
-      <p className="text-sm text-muted-foreground">
-        Assign the successful candidate to a team or project.
-      </p>
-
-      <div>
-        <Label>Team / Project</Label>
-        <Select>
-          <SelectTrigger className="mt-1.5 glass">
-            <SelectValue placeholder="Select team" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="engineering">Engineering</SelectItem>
-            <SelectItem value="product">Product</SelectItem>
-            <SelectItem value="design">Design</SelectItem>
-            <SelectItem value="data">Data Science</SelectItem>
-            <SelectItem value="devops">DevOps</SelectItem>
-            <SelectItem value="marketing">Marketing</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      <div>
-        <Label>Project Name (optional)</Label>
-        <Input
-          placeholder="e.g. Project Phoenix"
-          className="mt-1.5 glass"
-        />
-      </div>
-
-      <div>
-        <Label>Notes</Label>
-        <Textarea
-          placeholder="Any additional notes for onboarding..."
-          className="mt-1.5 glass"
-          rows={3}
-        />
+      <div className="bg-blue-500/5 border border-blue-500/20 rounded-xl p-4">
+        <h3 className="text-sm uppercase tracking-wider font-semibold text-blue-500 mb-4 flex items-center gap-2">
+          Internal Interview Plan
+        </h3>
+        {(!jd.interview_plan || jd.interview_plan.length === 0) && (
+          <p className="text-sm text-muted-foreground">No interviews generated for this role.</p>
+        )}
+        {jd.interview_plan?.map((iv, i) => (
+          <div key={i} className="glass rounded-lg p-4 mb-3 border border-border/50">
+             <div className="mb-3">
+                <Label className="text-xs">Interview Round</Label>
+                {isEditingPlans ? (
+                  <Input value={iv.interview_round || ""} onChange={e => {
+                      const newPlan = [...(jd.interview_plan || [])];
+                      newPlan[i].interview_round = e.target.value;
+                      setJD({...jd, interview_plan: newPlan});
+                  }} className="mt-1 h-8 text-sm glass" />
+                ) : (
+                  <p className="text-sm font-medium mt-1">{iv.interview_round}</p>
+                )}
+             </div>
+             <div>
+                <Label className="text-xs">Topics</Label>
+                {isEditingPlans ? (
+                  <Input value={iv.focus_topics?.join(", ") || ""} onChange={e => {
+                      const newPlan = [...(jd.interview_plan || [])];
+                      newPlan[i].focus_topics = e.target.value.split(",").map(s => s.trim()).filter(Boolean);
+                      setJD({...jd, interview_plan: newPlan});
+                  }} className="mt-1 h-8 text-sm glass" />
+                ) : (
+                  <div className="flex flex-wrap gap-1.5 mt-1.5">
+                    {iv.focus_topics?.map(topic => (
+                      <Badge key={topic} variant="outline" className="text-xs">{topic}</Badge>
+                    ))}
+                  </div>
+                )}
+             </div>
+          </div>
+        ))}
       </div>
     </div>
   );

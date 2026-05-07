@@ -9,12 +9,20 @@ import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import CandidateLayout from "./components/CandidateLayout";
 import JobBoard from "./pages/candidate/JobBoard";
+import CandidateJobDetail from "./pages/candidate/JobDetail";
 import MyApplications from "./pages/candidate/MyApplications";
+import AssessmentPage from "./pages/candidate/AssessmentPage";
+import InterviewPage from "./pages/candidate/InterviewPage";
 import Profile from "./pages/candidate/Profile";
 import HRLayout from "./components/HRLayout";
 import Dashboard from "./pages/hr/Dashboard";
 import JobDetail from "./pages/hr/JobDetail";
+import CandidateDetail from "./pages/hr/CandidateDetail";
+import JobsList from "./pages/hr/JobsList";
+import EndedJobs from "./pages/hr/EndedJobs";
+import HRProfile from "./pages/hr/Profile";
 import NotFound from "./pages/NotFound";
+<<<<<<< HEAD
 <<<<<<< Updated upstream
 =======
 import { AuthProvider } from "@/context/AuthContext";
@@ -22,12 +30,18 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 import CandidateProfile from "./pages/hr/CandidateProfile";
 import AIAssessment from "./pages/candidate/AIAssessment";
 >>>>>>> Stashed changes
+=======
+import { AuthProvider } from "@/context/AuthContext";
+import ProtectedRoute from "@/components/ProtectedRoute";
+import CandidateProfile from "./pages/hr/CandidateProfile";
+>>>>>>> main
 
 const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider>
+<<<<<<< HEAD
 <<<<<<< Updated upstream
       <TooltipProvider>
         <Toaster />
@@ -51,6 +65,8 @@ const App = () => (
         </BrowserRouter>
       </TooltipProvider>
 =======
+=======
+>>>>>>> main
       <AuthProvider>
         <TooltipProvider>
           <Toaster />
@@ -70,7 +86,10 @@ const App = () => (
                 }
               >
                 <Route path="jobs" element={<JobBoard />} />
+<<<<<<< HEAD
                 <Route path="assessment" element={<AIAssessment />} />
+=======
+>>>>>>> main
                 <Route path="jobs/:id" element={<CandidateJobDetail />} />
                 <Route path="applications" element={<MyApplications />} />
                 <Route path="applications/:applicationId/assessment/:assessmentIndex" element={<AssessmentPage />} />
@@ -103,7 +122,10 @@ const App = () => (
           </BrowserRouter>
         </TooltipProvider>
       </AuthProvider>
+<<<<<<< HEAD
 >>>>>>> Stashed changes
+=======
+>>>>>>> main
     </ThemeProvider>
   </QueryClientProvider>
 );

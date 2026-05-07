@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Users, Clock, Briefcase } from "lucide-react";
+import { Briefcase } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import api from "@/api/api";
 import { toast } from "sonner";

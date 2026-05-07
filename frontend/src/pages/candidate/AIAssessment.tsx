@@ -74,8 +74,8 @@ export default function AIAssessment(): JSX.Element {
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
   const [assessmentInput, setAssessmentInput] =
     useState<AssessmentInput | null>(null);
-  const [historyLoading, setHistoryLoading] = useState<boolean>(false);
-  const [assessmentHistory, setAssessmentHistory] = useState<any[]>([]);
+  const [_historyLoading, setHistoryLoading] = useState<boolean>(false);
+  const [_assessmentHistory, setAssessmentHistory] = useState<any[]>([]);
 
   useEffect(() => {
     window.dispatchEvent(

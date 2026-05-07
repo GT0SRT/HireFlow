@@ -93,11 +93,6 @@ const stepStatusLabel: Record<string, string> = {
   rejected: "Screening failed",
 };
 
-const truncateLabel = (text: string, maxLength: number = 35) => {
-  if (text.length <= maxLength) return text;
-  return text.substring(0, maxLength - 3) + "...";
-};
-
 const formatDate = (dateValue?: string) => {
   if (!dateValue) return "";
   return new Date(dateValue).toLocaleDateString();

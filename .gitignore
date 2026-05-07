@@ -1,4 +1,3 @@
-venv/
+# Node dependencies and lock files
 node_modules/
-__pycache__/
-.env
+package-lock.json

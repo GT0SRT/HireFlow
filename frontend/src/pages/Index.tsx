@@ -1,54 +1,12 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Navbar } from "@/components/Navbar";
-import { Zap, Users, Brain, ShieldCheck, Check, Star, Mail, Phone, MapPin, Send } from "lucide-react";
+import { Zap, Send } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import heroBg from "@/assets/hero-bg.png";
 import { useState } from "react";
-
-const features = [
-  { icon: Brain, title: "AI-Powered Screening", desc: "Automated candidate evaluation with intelligent assessments and scoring." },
-  { icon: Users, title: "Smart Job Board", desc: "Dynamic job listings with real-time application tracking for candidates." },
-  { icon: ShieldCheck, title: "End-to-End Pipeline", desc: "From job posting to team allocation — manage the entire recruitment lifecycle." },
-];
-
-const plans = [
-  {
-    name: "Starter",
-    price: "Free",
-    period: "",
-    desc: "For small teams getting started",
-    features: ["Up to 5 job postings", "Basic AI screening", "Email support", "Candidate tracking"],
-    cta: "Get Started",
-    highlight: false,
-  },
-  {
-    name: "Professional",
-    price: "$49",
-    period: "/mo",
-    desc: "For growing companies",
-    features: ["Unlimited job postings", "Advanced AI assessments", "AI-powered interviews", "Priority support", "Analytics dashboard", "Team allocation"],
-    cta: "Start Free Trial",
-    highlight: true,
-  },
-  {
-    name: "Enterprise",
-    price: "$149",
-    period: "/mo",
-    desc: "For large organizations",
-    features: ["Everything in Pro", "Custom integrations", "Dedicated account manager", "SSO & advanced security", "Custom AI models", "SLA guarantee"],
-    cta: "Contact Sales",
-    highlight: false,
-  },
-];
-
-const testimonials = [
-  { name: "Sarah Chen", role: "VP of Engineering, TechCorp", text: "HireFlow cut our hiring time by 60%. The AI screening is incredibly accurate.", rating: 5 },
-  { name: "Marcus Johnson", role: "HR Director, ScaleUp Inc", text: "The 5-step wizard makes complex recruitment pipelines feel effortless.", rating: 5 },
-  { name: "Priya Sharma", role: "Talent Lead, InnovateCo", text: "Best recruitment tool we've used. The AI interviews are a game-changer.", rating: 5 },
-];
 
 const Index = () => {
   const [form, setForm] = useState({

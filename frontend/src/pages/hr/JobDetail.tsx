@@ -274,7 +274,7 @@ export default function JobDetail() {
 
   return (
     <div>
-      {/* ── Header ─────────────────────────────────────────── */}
+      {/* ── Header ──────────────────────────────────────── */}
       <div className="mb-6">
         <button
           onClick={() => navigate(-1)}

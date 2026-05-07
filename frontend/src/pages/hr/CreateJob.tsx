@@ -10,7 +10,7 @@ export default function CreateJob() {
   const navigate = useNavigate();
   const [title, setTitle] = useState("");
   const [location, setLocation] = useState("");
-  const [type, setType] = useState("Full-time");
+  const [type] = useState("Full-time");
   const [notes, setNotes] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);

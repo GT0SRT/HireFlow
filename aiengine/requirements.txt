@@ -1,0 +1,7 @@
+python-dotenv
+google-generativeai
+PyMuPDF
+python-docx
+fastapi
+python-multipart
+groq

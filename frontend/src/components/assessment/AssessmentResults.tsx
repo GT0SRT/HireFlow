@@ -1,18 +1,3 @@
-import {
-  CheckCircle2,
-  XCircle,
-  Trophy,
-  Target,
-  BookOpen,
-  Star,
-  ArrowLeft,
-  TrendingUp,
-  Lightbulb,
-  MinusCircle,
-} from "lucide-react";
-
-import { createElement } from "react";
-import type { ElementType } from "react";
 
 import { useUserStore } from "../../store/useUserStore";
 
@@ -54,16 +39,6 @@ interface AssessmentResult {
   questionsAnalysis: QuestionAnalysis[];
 }
 
-interface ScoreRingProps {
-  score: number;
-}
-
-interface MetricBarProps {
-  label: string;
-  value: number;
-  icon: ElementType;
-}
-
 interface AssessmentResultsProps {
   result: AssessmentResult | null;
 
@@ -72,40 +47,9 @@ interface AssessmentResultsProps {
   loading?: boolean;
 }
 
-const ScoreRing = ({ score }: ScoreRingProps) => {
-  const radius = 54;
-
-  const circumference = 2 * Math.PI * radius;
-
-  const offset =
-    circumference - (score / 100) * circumference;
-
-  return (
-    <div>
-      {/* YOUR JSX */}
-    </div>
-  );
-};
-
-const MetricBar = ({
-  label,
-  value,
-  icon,
-}: MetricBarProps) => (
-  <div>
-    {createElement(icon, {
-      className: "w-4 h-4 text-primary",
-    })}
-
-    <span>{label}</span>
-
-    <span>{value}%</span>
-  </div>
-);
-
 const AssessmentResults = ({
   result,
-  onRestart,
+  onRestart: _onRestart,
   loading = false,
 }: AssessmentResultsProps) => {
   const theme = useUserStore(
@@ -113,10 +57,6 @@ const AssessmentResults = ({
   );
 
   const isDark = theme === "dark";
-
-  const cardClass = isDark
-    ? "rounded-lg p-4 border border-slate-700 bg-slate-800"
-    : "rounded-lg p-4 border border-gray-200 bg-white";
 
   if (loading || !result) {
     return <div>Loading...</div>;

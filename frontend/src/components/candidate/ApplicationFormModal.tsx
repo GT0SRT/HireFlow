@@ -35,10 +35,13 @@ type ApplicationScreening = {
 };
 
 type ExistingApplication = {
+  _id?: string;
   job?: { _id?: string } | string;
   status?: string;
   screening?: ApplicationScreening;
   parsedResume?: ParsedResume;
+  assessments?: any[];
+  currentAssessmentIndex?: number;
 };
 
 type ApplicationApiError = {
@@ -47,6 +50,7 @@ type ApplicationApiError = {
   screening?: ApplicationScreening & {
     parsedResume?: ParsedResume;
   };
+  application?: { _id?: string };
 };
 
 interface ApplicationFormModalProps {
@@ -92,6 +96,7 @@ export default function ApplicationFormModal({
   const [status, setStatus] = useState<ApplicationStatus>("form");
   const [showAssessmentStage, setShowAssessmentStage] = useState(false);
   const [assessmentIndex, setAssessmentIndex] = useState(0);
+  const [pendingAssessmentIndex, setPendingAssessmentIndex] = useState(0);
   const [checking, setChecking] = useState(false);
   const [hasExistingApplication, setHasExistingApplication] = useState(false);
   const [createdApplicationId, setCreatedApplicationId] = useState<string | null>(null);
@@ -103,6 +108,8 @@ export default function ApplicationFormModal({
       setFormData((prev) => ({ ...prev, resume: null }));
       setShowAssessmentStage(false);
       setAssessmentIndex(0);
+      setPendingAssessmentIndex(0);
+      setCreatedApplicationId(null);
       return;
     }
 
@@ -123,6 +130,14 @@ export default function ApplicationFormModal({
 
         if (existingApp) {
           setHasExistingApplication(true);
+          setCreatedApplicationId(existingApp._id || (existingApp as any).applicationId || null);
+          
+          const completedAssessmentsCount = Array.isArray(existingApp.assessments) ? existingApp.assessments.length : 
+                        Array.isArray((existingApp as any).assessmentScores) ? (existingApp as any).assessmentScores.length : 0;
+          const nextIdx = existingApp.currentAssessmentIndex ?? completedAssessmentsCount;
+          setPendingAssessmentIndex(nextIdx);
+          setAssessmentIndex(nextIdx);
+          
           const s = existingApp.screening || {};
           const applicationStatus = existingApp.status ?? "";
 
@@ -232,8 +247,10 @@ export default function ApplicationFormModal({
       }
 
       if (s.status === "Shortlisted") {
-        setCreatedApplicationId(data.application?._id);
+        setCreatedApplicationId(data.application?._id || data._id || data.applicationId);
         setStatus("screening");
+        setAssessmentIndex(0);
+        setPendingAssessmentIndex(0);
         toast.success("Congratulations! You've been shortlisted! 🎉");
       } else {
         setStatus("rejected");
@@ -244,6 +261,7 @@ export default function ApplicationFormModal({
       const s = errorData?.screening || {};
       if (s.status) {
         setHasExistingApplication(true);
+        setCreatedApplicationId(errorData?.application?._id || (errorData as any)?._id || null);
         setScreening({
           threshold: s.atsThreshold ?? s.threshold ?? 70,
           score: s.atsScore ?? s.score ?? null,
@@ -280,7 +298,7 @@ export default function ApplicationFormModal({
 
   const handleViewNextAssessment = () => {
     setShowAssessmentStage(true);
-    setAssessmentIndex(0);
+    setAssessmentIndex(pendingAssessmentIndex);
   };
 
   const handleNextAssessment = () => {
@@ -437,7 +455,13 @@ export default function ApplicationFormModal({
 
                   {showAssessmentStage ? (
                     assessmentPlan.length > 0 ? (
-                      renderAssessmentCard(assessmentPlan[assessmentIndex], assessmentIndex)
+                      assessmentPlan[assessmentIndex] ? (
+                        renderAssessmentCard(assessmentPlan[assessmentIndex], assessmentIndex)
+                      ) : (
+                        <div className="rounded-2xl border border-border/60 bg-background/60 p-5 md:p-6 text-sm text-muted-foreground">
+                          You have completed all available assessment stages for this role.
+                        </div>
+                      )
                     ) : (
                       <div className="rounded-2xl border border-border/60 bg-background/60 p-5 md:p-6 text-sm text-muted-foreground">
                         No assessment stages are configured for this role yet.
@@ -453,15 +477,15 @@ export default function ApplicationFormModal({
                   {isAtsScoreMissing && (status === "already-applied" || status === "screening") && uploadAnotherResumeCard}
 
                   <div className="flex flex-col gap-2">
-                    {assessmentPlan.length > 0 && createdApplicationId && (
+                    {assessmentPlan.length > pendingAssessmentIndex && createdApplicationId && (
                       <Button
                         className="w-full"
                         onClick={() => {
                           onClose();
-                          navigate(`/candidate/applications/${createdApplicationId}/assessment/0`);
+                          navigate(`/candidate/applications/${createdApplicationId}/assessment/${pendingAssessmentIndex}`);
                         }}
                       >
-                        Start Assessment
+                        Start Assessment {pendingAssessmentIndex + 1}
                       </Button>
                     )}
                     <Button

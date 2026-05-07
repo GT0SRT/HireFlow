@@ -23,6 +23,7 @@ app.use("/api/jobs", require("./routes/jobRoutes"));
 app.use("/api/applications", require("./routes/applicationRoutes"));
 app.use("/api/ai", require("./routes/aiRoutes"));
 app.use("/api/profile", require("./routes/profileRoutes"));
+app.use("/api/assessments", require("./routes/assessmentRoutes"));
 
 // Health check
 app.get("/", (req, res) => res.json({ message: "HireFlow API running" }));

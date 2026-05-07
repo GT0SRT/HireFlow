@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { useNavigate, useParams } from "react-router-dom";
 import api from "@/api/api";
 import { toast } from "sonner";
-import AssessmentQuiz, { type Question } from "./AssessmentQuiz";
+import AssessmentQuiz, { type Question } from "@/components/assessment/AssessmentQuiz";
 
 type Stage = "loading" | "intro" | "quiz" | "submitting" | "result";
 

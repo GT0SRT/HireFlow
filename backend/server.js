@@ -25,8 +25,14 @@ app.use(express.json());
 app.use(cookieParser());
 
 // Middleware
+const allowedOrigins = [
+  "http://localhost:5173",
+  "https://webhireflow.vercel.app",
+  process.env.FRONTEND_URL
+].filter(Boolean); // This removes undefined/null values
+
 app.use(cors({
-  origin: "http://localhost:5173",
+  origin: allowedOrigins,
   credentials: true,
 }));
 

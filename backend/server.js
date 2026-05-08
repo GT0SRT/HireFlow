@@ -1,13 +1,28 @@
 const express = require("express");
 const dotenv = require("dotenv");
 const cors = require("cors");
+const session = require("express-session");
 const cookieParser = require("cookie-parser");
 const connectDB = require("./config/db");
+const passport = require("./config/passport");
 
 dotenv.config();
 connectDB();
 
+console.log("=== Environment Check ===");
+console.log("PORT:", process.env.PORT);
+console.log("MONGO_URI:", process.env.MONGO_URI ? "✅ Set" : "❌ Missing");
+console.log("JWT_SECRET:", process.env.JWT_SECRET ? "✅ Set" : "❌ Missing");
+console.log("GOOGLE_CLIENT_ID:", process.env.GOOGLE_CLIENT_ID ? "✅ Set" : "❌ Missing");
+console.log("GOOGLE_CLIENT_SECRET:", process.env.GOOGLE_CLIENT_SECRET ? "✅ Set" : "❌ Missing");
+console.log("========================");
+
 const app = express();
+
+
+
+app.use(express.json());
+app.use(cookieParser());
 
 // Middleware
 const allowedOrigins = [
@@ -20,8 +35,22 @@ app.use(cors({
   origin: allowedOrigins,
   credentials: true,
 }));
-app.use(express.json());
-app.use(cookieParser());
+
+app.use(
+  session({
+    secret: process.env.SESSION_SECRET || "your-secret-key",
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      secure: process.env.NODE_ENV === "production", // Only HTTPS in production
+      maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    },
+  })
+);
+
+app.use(passport.initialize());
+app.use(passport.session());
+
 
 // Routes
 app.use("/api/auth", require("./routes/authRoutes"));

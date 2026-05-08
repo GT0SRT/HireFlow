@@ -12,6 +12,10 @@ const userSchema = new mongoose.Schema(
       default: "candidate",
     },
     
+
+    googleId: { type: String, sparse: true, unique: true },
+
+    
     // Common fields for all users
     phone: { type: String, trim: true },
     location: { type: String, trim: true },

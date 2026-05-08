@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "@/lib/theme";
 import { AuthProvider } from "@/context/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import GoogleAuthSuccess from "@/pages/GoogleAuthSuccess";
 
 import Index from "./pages/Index";
 import Login from "./pages/Login";
@@ -46,6 +47,7 @@ const App = () => (
               <Route path="/" element={<Index />} />
               <Route path="/login" element={<Login />} />
               <Route path="/signup" element={<Signup />} />
+               <Route path="/auth/google/success" element={<GoogleAuthSuccess />} />
 
               <Route
                 path="/candidate"
@@ -85,6 +87,7 @@ const App = () => (
                   path="candidate/:userId"
                   element={<CandidateProfile />}
                 />
+               
                 <Route path="dashboard" element={<Dashboard />} />
                 <Route path="jobs" element={<JobsList />} />
                 <Route path="jobs/ended" element={<EndedJobs />} />

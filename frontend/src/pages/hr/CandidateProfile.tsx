@@ -1,6 +1,3 @@
-
-
-
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
@@ -19,11 +16,21 @@ import { toast } from "sonner";
 interface CandidateProfile {
   _id: string;
   name: string;
+  email?: string;
   phone?: string;
   location?: string;
   bio?: string;
   skills?: string[];
   resume?: string;
+
+  screening?: {
+    atsScore?: number;
+  };
+
+  assessmentScore?: number;
+  interviewScore?: number;
+
+  status?: string;
 }
 
 export default function CandidateProfile() {
@@ -45,7 +52,7 @@ export default function CandidateProfile() {
       toast.error("Resume not available");
       return;
     }
-    
+
     // Open in new tab - browser will handle display vs download
     window.open(candidate.resume, "_blank", "noopener,noreferrer");
   };
@@ -164,6 +171,22 @@ export default function CandidateProfile() {
           </div>
         </div>
       )}
+
+      <Button
+        onClick={() => {
+          if (!candidate?.email) {
+            toast.error("Email not available");
+            return;
+          }
+          window.open(
+            `https://mail.google.com/mail/?view=cm&fs=1&to=${candidate.email}`,
+            "_blank",
+          );
+        }}
+        className="flex-1"
+      >
+        Send Email
+      </Button>
     </div>
   );
 }

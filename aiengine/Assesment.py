@@ -52,7 +52,16 @@ def generate_interview_assessment_with_gemini(internal_assessment_plan) -> dict:
             prompt,
             generation_config={"response_mime_type": "application/json"}
         )
-        return json.loads(response.text)
+        
+        clean_text = response.text.strip()
+        if clean_text.startswith("```json"):
+            clean_text = clean_text[7:]
+        elif clean_text.startswith("```"):
+            clean_text = clean_text[3:]
+        if clean_text.endswith("```"):
+            clean_text = clean_text[:-3]
+            
+        return json.loads(clean_text.strip())
     except json.JSONDecodeError:
          return {"error": "Failed to parse AI response into JSON format."}
     except Exception as e:

@@ -43,7 +43,16 @@ def generate_interview_questions(job_role: str, mandatory_skills: list, current_
             prompt,
             generation_config={"response_mime_type": "application/json"}
         )
-        return json.loads(response.text)
+        
+        clean_text = response.text.strip()
+        if clean_text.startswith("```json"):
+            clean_text = clean_text[7:]
+        elif clean_text.startswith("```"):
+            clean_text = clean_text[3:]
+        if clean_text.endswith("```"):
+            clean_text = clean_text[:-3]
+            
+        return json.loads(clean_text.strip())
     except Exception as e:
         return {"error": str(e)}
 

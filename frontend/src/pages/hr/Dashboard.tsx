@@ -50,7 +50,7 @@ export default function Dashboard() {
 
   return (
     <div>
-      <div className="grid gap-4 lg:grid-cols-[1.3fr_0.9fr] mb-5 md:mb-6">
+      <div className="grid mt-14 md:mt-1 gap-4 lg:grid-cols-[1.3fr_0.9fr] mb-5 md:mb-6">
         <div className="glass rounded-2xl p-5 md:p-6 animate-fade-in">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>

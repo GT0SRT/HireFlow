@@ -16,6 +16,13 @@ export default function HRLayout() {
   const { theme, toggle } = useTheme();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
+  const isLinkActive = (to: string) => {
+    if (to === "/hr/jobs") {
+      return pathname === "/hr/jobs" || (pathname.startsWith("/hr/jobs/") && !pathname.startsWith("/hr/jobs/ended"));
+    }
+    return pathname.startsWith(to);
+  };
+
   return (
     <div className="flex h-screen">
       {/* Mobile header */}
@@ -44,7 +51,7 @@ export default function HRLayout() {
             <Zap className="h-5 w-5 text-primary" />
             HireFlow
           </Link>
-          <p className="text-xs text-muted-foreground mt-1">HR / Admin</p>
+          <p className="text-xs text-muted-foreground ml-7">Recruiter Portal</p>
         </div>
         <nav className="flex-1 p-4 space-y-1">
           {links.map(l => (
@@ -54,7 +61,7 @@ export default function HRLayout() {
               onClick={() => setSidebarOpen(false)}
               className={cn(
                 "flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all",
-                pathname.startsWith(l.to)
+                isLinkActive(l.to)
                   ? "bg-primary/10 text-primary glow-primary-sm"
                   : "text-muted-foreground hover:text-foreground hover:bg-muted"
               )}

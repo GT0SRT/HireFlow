@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import heroBg from "@/assets/hero-bg.png";
 import { useState } from "react";
+import api from "@/api/api";
 
 const Index = () => {
   const [form, setForm] = useState({
@@ -19,16 +20,10 @@ const Index = () => {
     e.preventDefault();
 
     try {
-      const res = await fetch("http://localhost:3000/api/v1/echo", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(form),
-      });
+      // Use the pre-configured axios instance to automatically handle base URLs
+      const res = await api.post("/echo", form);
 
-      const data = await res.json();
-      console.log("✅ Response:", data);
+      console.log("✅ Response:", res.data);
 
       alert("Message sent successfully!");
 

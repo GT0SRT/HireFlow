@@ -10,18 +10,12 @@ import {
   Eye,
   UserCheck,
   Star,
+  Share2,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import api from "@/api/api";
 import { toast } from "sonner";
-
-// ─────────────────────────────────────────────────────────────
-// 🚧 DUMMY DATA FLAG
-// Jab real backend ready ho jaye to bas ye ek line false karo:
-// const USE_DUMMY_DATA = false;
-// ─────────────────────────────────────────────────────────────
-const USE_DUMMY_DATA = false;
 
 type ApplicationStatus =
   | "Applied"
@@ -66,6 +60,9 @@ interface Applicant {
   };
   assessmentScore?: number;
   interviewScore?: number;
+  assessment?: { score?: number }[];
+  assessments?: { score?: number }[];
+  interviews?: { score?: number }[];
   candidate: {
     _id: string;
     name: string;
@@ -75,83 +72,6 @@ interface Applicant {
   };
 }
 
-// ─── Dummy Data (sirf USE_DUMMY_DATA=true tab use hoga) ──────
-const DUMMY_JOB: JobDetailData = {
-  _id: "dummy-job-1",
-  title: "Senior Frontend Engineer",
-  company: "Acme Corp",
-  isActive: true,
-  createdAt: new Date().toISOString(),
-  job_description: {
-    job_summary:
-      "Build user-facing features with React/TypeScript. Collaborate with design and backend teams.",
-    experience_years: "3-5 years",
-    mandatory_technical_skills: ["React", "TypeScript", "Tailwind CSS"],
-    key_responsibilities: ["Develop scalable components", "Mentor juniors"],
-    requirements: [
-      "Strong UI architecture experience",
-      "Comfort with design systems",
-    ],
-    assessment_plan: [
-      {
-        test_type: "Coding",
-        focus_topics: ["React components", "TypeScript patterns"],
-        suggested_duration_minutes: 60,
-      },
-    ],
-    interview_plan: [
-      {
-        interview_round: "Technical",
-        focus_topics: ["Frontend architecture", "State management"],
-      },
-    ],
-  },
-};
-
-const DUMMY_APPLICANTS: Applicant[] = [
-  {
-    _id: "a1",
-    status: "Interview Scheduled",
-    resumeScore: 85,
-    assessmentScore: 78,
-    interviewScore: 82,
-    createdAt: new Date().toISOString(),
-    candidate: {
-      _id: "c1",
-      name: "Aarav Sharma",
-      email: "aarav@example.com",
-      skills: ["React", "TypeScript", "Tailwind CSS"],
-    },
-  },
-  {
-    _id: "a2",
-    status: "Assessment Pending",
-    resumeScore: 72,
-    assessmentScore: 69,
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 3).toISOString(),
-    notes: "Strong resume. Awaiting assessment completion.",
-    candidate: {
-      _id: "c2",
-      name: "Priya Patel",
-      email: "priya@example.com",
-      skills: ["Node.js", "Express", "MongoDB"],
-    },
-  },
-  {
-    _id: "a3",
-    status: "Rejected",
-    resumeScore: 45,
-    assessmentScore: 38,
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 10).toISOString(),
-    candidate: {
-      _id: "c3",
-      name: "Neha Patel",
-      email: "neha@example.com",
-    },
-  },
-];
-// ─── Dummy Data End ──────────────────────────────────────────
-
 const statusColor: Record<string, string> = {
   Applied: "bg-muted text-muted-foreground",
   "Assessment Pending": "bg-amber-500/10 text-amber-500 border-amber-500/20",
@@ -160,8 +80,8 @@ const statusColor: Record<string, string> = {
   Rejected: "bg-destructive/10 text-destructive border-destructive/20",
 };
 
-const scoreColor = (score?: number) => {
-  if (!score) return "text-muted-foreground";
+const scoreColor = (score?: number | null) => {
+  if (score == null) return "text-muted-foreground";
   if (score >= 80) return "text-emerald-500";
   if (score >= 60) return "text-amber-500";
   return "text-destructive";
@@ -179,14 +99,6 @@ export default function JobDetail() {
   const loadJobData = async () => {
     if (!jobId) return;
 
-    // ── Dummy mode ──────────────────────────────────────────
-    if (USE_DUMMY_DATA) {
-      setJob(DUMMY_JOB);
-      setApplicants(DUMMY_APPLICANTS);
-      setLoading(false);
-      return;
-    }
-    // ── Real API mode (USE_DUMMY_DATA = false hone par) ─────
     try {
       setLoading(true);
       const [jobRes, applicationsRes] = await Promise.all([
@@ -212,11 +124,6 @@ export default function JobDetail() {
 
   const toggleJobStatus = async () => {
     if (!jobId || !job) return;
-    if (USE_DUMMY_DATA) {
-      setJob((prev) => (prev ? { ...prev, isActive: !prev.isActive } : prev));
-      toast.success("Job status updated (demo)");
-      return;
-    }
     try {
       setUpdatingJob(true);
       const { data } = await api.put(`/jobs/${jobId}`, {
@@ -235,11 +142,6 @@ export default function JobDetail() {
     if (!jobId) return;
     if (!window.confirm("Delete this job posting? This cannot be undone."))
       return;
-    if (USE_DUMMY_DATA) {
-      toast.success("Job deleted (demo)");
-      navigate("/hr/dashboard");
-      return;
-    }
     try {
       setUpdatingJob(true);
       await api.delete(`/jobs/${jobId}`);
@@ -270,25 +172,23 @@ export default function JobDetail() {
   ).length;
   const inProgressCount = applicants.length - selectedCount - rejectedCount;
 
-  // Average scores
-  const withResume = applicants.filter((a) => a.screening?.atsScore);
-  const withAssessment = applicants.filter((a) => a.assessmentScore);
-  const withInterview = applicants.filter((a) => a.interviewScore);
-
-  const avg = (arr: Applicant[], key: keyof Applicant) =>
-    arr.length
-      ? Math.round(arr.reduce((s, a) => s + (a[key] as number), 0) / arr.length)
-      : null;
-  const avgResume = withResume.length
-  ? Math.round(
-      withResume.reduce(
-        (sum, a) => sum + (a.screening?.atsScore || 0),
-        0
-      ) / withResume.length
-    )
-  : null;
-  const avgAssessment = avg(withAssessment, "assessmentScore");
-  const avgInterview = avg(withInterview, "interviewScore");
+  const enrichedApplicants = applicants.map(app => {
+    let aScore = app.assessmentScore;
+    if (aScore == null) {
+      const arr = app.assessment || app.assessments || [];
+      const scored = arr.filter((x: any) => x.score != null);
+      if (scored.length) aScore = Math.round(scored.reduce((acc, curr) => acc + curr.score!, 0) / scored.length);
+    }
+    
+    let iScore = app.interviewScore;
+    if (iScore == null) {
+      const arr = app.interviews || [];
+      const scored = arr.filter((x: any) => x.score != null);
+      if (scored.length) iScore = Math.round(scored.reduce((acc, curr) => acc + curr.score!, 0) / scored.length);
+    }
+    
+    return { ...app, computedAssessmentScore: aScore, computedInterviewScore: iScore };
+  });
 
   const stats = [
     { label: "Total Applicants", value: applicants.length, icon: Users },
@@ -329,6 +229,16 @@ export default function JobDetail() {
             >
               {job.isActive ? "Active" : "Closed"}
             </Badge>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                navigator.clipboard.writeText(`${window.location.origin}/jobs/${job._id}`);
+                toast.success("Public job link copied to clipboard!");
+              }}
+            >
+              <Share2 className="h-3.5 w-3.5 mr-1.5" /> Share Link
+            </Button>
             <Button
               variant="outline"
               size="sm"
@@ -477,26 +387,6 @@ export default function JobDetail() {
         ))}
       </div>
 
-      {/* ── Avg Score Cards ────────────────────────────────── */}
-      {applicants.length > 0 && (
-        <div className="grid grid-cols-3 gap-4 mb-6">
-          {[
-            { label: "Avg Resume Score", value: avgResume },
-            { label: "Avg Assessment Score", value: avgAssessment },
-            { label: "Avg Interview Score", value: avgInterview },
-          ].map((item) => (
-            <div key={item.label} className="glass rounded-2xl p-4 text-center">
-              <p
-                className={`text-2xl font-display font-bold ${scoreColor(item.value ?? 0)}`}
-              >
-                {item.value !== null ? `${item.value}%` : "—"}
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">{item.label}</p>
-            </div>
-          ))}
-        </div>
-      )}
-
       {/* ── Applicants Table ───────────────────────────────── */}
       <div className="glass rounded-2xl overflow-hidden">
         <div className="p-4 border-b border-border/50 flex items-center justify-between">
@@ -506,14 +396,6 @@ export default function JobDetail() {
               ({applicants.length})
             </span>
           </h2>
-          {USE_DUMMY_DATA && (
-            <Badge
-              variant="outline"
-              className="text-xs text-amber-500 border-amber-500/30"
-            >
-              Demo Mode
-            </Badge>
-          )}
         </div>
 
         {applicants.length === 0 ? (
@@ -553,7 +435,7 @@ export default function JobDetail() {
                   </tr>
                 </thead>
                 <tbody>
-                  {applicants.map((applicant) => (
+                {enrichedApplicants.map((applicant) => (
                     <tr
                       key={applicant._id}
                       className="border-b border-border/30 hover:bg-muted/30 transition-colors"
@@ -604,24 +486,24 @@ export default function JobDetail() {
                           applicant.screening?.atsScore,
                         )}`}
                       >
-                        {applicant.screening?.atsScore
+                      {applicant.screening?.atsScore != null
                           ? `${applicant.screening.atsScore}%`
                           : "—"}
                       </td>
 
                       <td
-                        className={`p-4 font-semibold ${scoreColor(applicant.assessmentScore)}`}
+                      className={`p-4 font-semibold ${scoreColor(applicant.computedAssessmentScore)}`}
                       >
-                        {applicant.assessmentScore
-                          ? `${applicant.assessmentScore}%`
+                      {applicant.computedAssessmentScore != null
+                        ? `${applicant.computedAssessmentScore}%`
                           : "—"}
                       </td>
 
                       <td
-                        className={`p-4 font-semibold ${scoreColor(applicant.interviewScore)}`}
+                      className={`p-4 font-semibold ${scoreColor(applicant.computedInterviewScore)}`}
                       >
-                        {applicant.interviewScore
-                          ? `${applicant.interviewScore}%`
+                      {applicant.computedInterviewScore != null
+                        ? `${applicant.computedInterviewScore}%`
                           : "—"}
                       </td>
 
@@ -636,7 +518,7 @@ export default function JobDetail() {
                           variant="outline"
                           className="gap-1.5 text-xs"
                           onClick={() =>
-                            navigate(`/hr/candidate/${applicant.candidate._id}`)
+                            navigate(`/hr/candidate/${applicant.candidate._id}`, { state: { application: applicant, job: job } })
                           }
                         >
                           <Eye className="h-3.5 w-3.5" />
@@ -651,7 +533,7 @@ export default function JobDetail() {
 
             {/* Mobile Cards */}
             <div className="md:hidden divide-y divide-border/30">
-              {applicants.map((applicant) => (
+              {enrichedApplicants.map((applicant) => (
                 <div key={applicant._id} className="p-4 space-y-3">
                   <div className="flex items-start justify-between gap-2">
                     <div>
@@ -672,20 +554,20 @@ export default function JobDetail() {
                   <div className="flex gap-4 text-xs">
                     <span className={scoreColor(applicant.screening?.atsScore)}>
                       Resume:{" "}
-                      {applicant.screening?.atsScore
+                      {applicant.screening?.atsScore != null
                         ? `${applicant.screening.atsScore}%`
                         : "—"}
                     </span>
-                    <span className={scoreColor(applicant.assessmentScore)}>
+                    <span className={scoreColor(applicant.computedAssessmentScore)}>
                       Assessment:{" "}
-                      {applicant.assessmentScore
-                        ? `${applicant.assessmentScore}%`
+                      {applicant.computedAssessmentScore != null
+                        ? `${applicant.computedAssessmentScore}%`
                         : "—"}
                     </span>
-                    <span className={scoreColor(applicant.interviewScore)}>
+                    <span className={scoreColor(applicant.computedInterviewScore)}>
                       Interview:{" "}
-                      {applicant.interviewScore
-                        ? `${applicant.interviewScore}%`
+                      {applicant.computedInterviewScore != null
+                        ? `${applicant.computedInterviewScore}%`
                         : "—"}
                     </span>
                   </div>
@@ -696,7 +578,7 @@ export default function JobDetail() {
                     variant="outline"
                     className="w-full gap-2 text-xs"
                     onClick={() =>
-                      navigate(`/hr/candidate/${applicant.candidate._id}`)
+                      navigate(`/hr/candidate/${applicant.candidate._id}`, { state: { application: applicant, job: job } })
                     }
                   >
                     <Eye className="h-3.5 w-3.5" />

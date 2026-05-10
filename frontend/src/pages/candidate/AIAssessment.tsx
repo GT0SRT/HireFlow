@@ -57,7 +57,6 @@ interface AssessmentInput {
 
 export default function AIAssessment(): JSX.Element {
   const location = useLocation();
-  console.log(location.state);
 
   const [phase, setPhase] = useState<"setup" | "quiz" | "results">(
     "setup"

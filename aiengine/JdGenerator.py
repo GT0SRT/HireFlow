@@ -24,6 +24,7 @@ def generate_structured_jd(title: str, brief_notes: str = None):
     - If the notes are detailed, organize and structure them into the required format.
     - Accurately infer the required technical stack, soft skills, and responsibilities based on the Job Title.
     - Keep the assessment plan concise and practical: generate strictly between 2 to 4 tests total. Do not overload the candidate.
+    - Assign highly realistic `suggested_duration_minutes` based on test complexity (e.g., strictly 30-45 mins for theory/MCQs, 60-90 mins for coding). Do NOT assign 60 minutes for basic MCQs.
     - Keep the interview plan highly efficient: strictly 1 or 2 rounds maximum according to role (e.g., Technical and/or Managerial).
     
     You must respond ONLY with a valid JSON object matching this exact schema. INCLUDE a
@@ -77,6 +78,14 @@ def generate_structured_jd(title: str, brief_notes: str = None):
     
     import json
     try:
-        return json.loads(response.text)
+        clean_text = response.text.strip()
+        if clean_text.startswith("```json"):
+            clean_text = clean_text[7:]
+        elif clean_text.startswith("```"):
+            clean_text = clean_text[3:]
+        if clean_text.endswith("```"):
+            clean_text = clean_text[:-3]
+            
+        return json.loads(clean_text.strip())
     except json.JSONDecodeError:
          return {"error": "Failed to parse AI response into JSON format."}

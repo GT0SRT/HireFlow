@@ -43,7 +43,7 @@ export default function CandidateLayout() {
             <Zap className="h-5 w-5 text-primary" />
             HireFlow
           </Link>
-          <p className="text-xs text-muted-foreground mt-1">Candidate Portal</p>
+          <p className="text-xs text-muted-foreground ml-7">Candidate Portal</p>
         </div>
         <nav className="flex-1 p-4 space-y-1">
           {links.map(l => (

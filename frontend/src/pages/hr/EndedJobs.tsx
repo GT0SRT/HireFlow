@@ -43,7 +43,7 @@ export default function EndedJobs() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-6 mt-14 md:mt-1">
         <div>
           <h1 className="text-2xl font-display font-bold">Ended Openings</h1>
           <p className="text-sm text-muted-foreground">Recently closed job postings</p>

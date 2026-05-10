@@ -33,6 +33,7 @@ type Job = {
   company: string;
   location: string;
   type: string;
+  isActive: boolean;
   createdAt: string;
   job_description?: JobDescription;
 };
@@ -89,21 +90,29 @@ export default function CandidateJobDetail() {
 
         <div className="flex flex-col md:flex-row md:items-start justify-between gap-6 mb-6">
           <div>
-            <h1 className="text-2xl md:text-3xl lg:text-4xl font-display font-bold text-foreground mb-2">
-              {job.title}
-            </h1>
+            <div className="flex flex-wrap items-center gap-3 mb-2">
+              <h1 className="text-2xl md:text-3xl lg:text-4xl font-display font-bold text-foreground">
+                {job.title}
+              </h1>
+              {!job.isActive && (
+                <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/20">
+                  Applications Closed
+                </Badge>
+              )}
+            </div>
             <p className="text-sm md:text-lg text-muted-foreground">{job.company}</p>
           </div>
 
           <Button
             size="lg"
-            className="glow-primary shrink-0"
+            className={job.isActive ? "glow-primary shrink-0" : "shrink-0 opacity-50 cursor-not-allowed"}
+            disabled={!job.isActive}
             onClick={() => {
               if (!user) return navigate('/login');
               setIsModalOpen(true);
             }}
           >
-            Apply for this role
+            {job.isActive ? "Apply for this role" : "Applications Closed"}
           </Button>
         </div>
 

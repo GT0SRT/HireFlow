@@ -66,7 +66,7 @@ export default function Login() {
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              {r === "candidate" ? "I am a Candidate" : "I am HR/Admin"}
+              {r === "candidate" ? "I am a Candidate" : "I am Recruiter"}
             </button>
           ))}
         </div>

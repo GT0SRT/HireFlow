@@ -73,7 +73,7 @@ export default function HRProfile() {
   const completion = [form.company, form.website, form.location, form.industry, form.hiringEmail, form.about].filter(Boolean).length;
 
   return (
-    <div className="max-w-5xl space-y-6">
+    <div className="max-w-5xl space-y-6 mt-14 md:mt-1">
       <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
         <div>
           <h1 className="text-3xl font-display font-bold">Company Profile</h1>

@@ -97,7 +97,7 @@ export default function JobBoard() {
   const handleViewDetails = (job: Job) => navigate(`/jobs/${job._id}`);
 
   return (
-    <div>
+    <div className="flex flex-col min-h-[96vh]">
       <div className="mb-8 mt-16 md:mt-3">
         <h1 className="text-2xl sm:text-3xl font-display font-bold">Job Board</h1>
         <p className="text-sm sm:text-base text-muted-foreground mt-1">
@@ -223,7 +223,7 @@ export default function JobBoard() {
       
       {/* Pagination (UI Only) */}
       {visibleJobs.length > 0 && (
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mt-10 p-4 glass rounded-xl">
+        <div className="mt-auto md:mt-10 p-4 glass rounded-xl">
           <div className="grid w-full grid-cols-3 items-center">
             <Button variant="outline" size="sm" disabled className="h-8 col-span-1 w-fit bg-background/50 text-xs sm:text-sm">
               <ChevronLeft className="h-4 w-4 mr-1" /> Prev

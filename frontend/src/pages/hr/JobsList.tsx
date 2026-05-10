@@ -42,7 +42,7 @@ export default function JobsList() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-6 mt-14 md:mt-1">
         <div>
           <h1 className="text-2xl font-display font-bold">Current Openings</h1>
           <p className="text-sm text-muted-foreground">All active job postings</p>

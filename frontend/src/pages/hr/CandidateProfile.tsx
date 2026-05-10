@@ -12,7 +12,6 @@ import {
   AlertCircle,
   Code2,
   MessageSquare,
-  FileSearch,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";

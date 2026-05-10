@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Outlet, Link, useLocation } from "react-router-dom";
-import { Zap, Briefcase, FileText, User, Sun, Moon, LogOut, Menu, X, Brain } from "lucide-react";
+import { Zap, Briefcase, FileText, User, Sun, Moon, LogOut, Menu, X } from "lucide-react";
 import { useTheme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 

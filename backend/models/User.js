@@ -23,6 +23,7 @@ const userSchema = new mongoose.Schema(
     // Candidate-specific fields
     bio: { type: String, trim: true },
     resume: { type: String }, // Resume file path/URL
+     resumePublicId: { type: String },
     skills: [{ type: String }],
     
     // HR-specific fields

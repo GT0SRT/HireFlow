@@ -39,7 +39,11 @@ export interface JobDescription {
   soft_skills?: string[];
   key_responsibilities?: string[];
   requirements?: string[];
-  assessment_plan?: { test_type: string; focus_topics: string[]; suggested_duration_minutes: number }[];
+  assessment_plan?: {
+    test_type: string;
+    focus_topics: string[];
+    suggested_duration_minutes: number;
+  }[];
   interview_plan?: { interview_round: string; focus_topics: string[] }[];
 }
 
@@ -57,7 +61,9 @@ interface Applicant {
   status: ApplicationStatus;
   createdAt: string;
   notes?: string;
-  resumeScore?: number;
+  screening?: {
+    atsScore?: number;
+  };
   assessmentScore?: number;
   interviewScore?: number;
   candidate: {
@@ -82,7 +88,10 @@ const DUMMY_JOB: JobDetailData = {
     experience_years: "3-5 years",
     mandatory_technical_skills: ["React", "TypeScript", "Tailwind CSS"],
     key_responsibilities: ["Develop scalable components", "Mentor juniors"],
-    requirements: ["Strong UI architecture experience", "Comfort with design systems"],
+    requirements: [
+      "Strong UI architecture experience",
+      "Comfort with design systems",
+    ],
     assessment_plan: [
       {
         test_type: "Coding",
@@ -188,8 +197,8 @@ export default function JobDetail() {
       setApplicants(applicationsRes.data);
     } catch (error: unknown) {
       const message =
-        (error as { response?: { data?: { message?: string } } })
-          ?.response?.data?.message || "Failed to load job details";
+        (error as { response?: { data?: { message?: string } } })?.response
+          ?.data?.message || "Failed to load job details";
       toast.error(message);
       navigate("/hr/dashboard");
     } finally {
@@ -197,18 +206,22 @@ export default function JobDetail() {
     }
   };
 
-  useEffect(() => { loadJobData(); }, [jobId]);
+  useEffect(() => {
+    loadJobData();
+  }, [jobId]);
 
   const toggleJobStatus = async () => {
     if (!jobId || !job) return;
     if (USE_DUMMY_DATA) {
-      setJob(prev => prev ? { ...prev, isActive: !prev.isActive } : prev);
+      setJob((prev) => (prev ? { ...prev, isActive: !prev.isActive } : prev));
       toast.success("Job status updated (demo)");
       return;
     }
     try {
       setUpdatingJob(true);
-      const { data } = await api.put(`/jobs/${jobId}`, { isActive: !job.isActive });
+      const { data } = await api.put(`/jobs/${jobId}`, {
+        isActive: !job.isActive,
+      });
       setJob(data);
       toast.success(`Job marked as ${data.isActive ? "active" : "closed"}`);
     } catch {
@@ -220,7 +233,8 @@ export default function JobDetail() {
 
   const deleteJob = async () => {
     if (!jobId) return;
-    if (!window.confirm("Delete this job posting? This cannot be undone.")) return;
+    if (!window.confirm("Delete this job posting? This cannot be undone."))
+      return;
     if (USE_DUMMY_DATA) {
       toast.success("Job deleted (demo)");
       navigate("/hr/dashboard");
@@ -238,38 +252,49 @@ export default function JobDetail() {
     }
   };
 
-  if (loading) return (
-    <div className="flex items-center justify-center h-64">
-      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-    </div>
-  );
+  if (loading)
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+      </div>
+    );
 
   if (!job) return null;
 
   // ── Stats calculate karo real data se ───────────────────────
-  const selectedCount   = applicants.filter(a => a.status === "Selected").length;
-  const rejectedCount   = applicants.filter(a => a.status === "Rejected").length;
+  const selectedCount = applicants.filter(
+    (a) => a.status === "Selected",
+  ).length;
+  const rejectedCount = applicants.filter(
+    (a) => a.status === "Rejected",
+  ).length;
   const inProgressCount = applicants.length - selectedCount - rejectedCount;
 
   // Average scores
-  const withResume     = applicants.filter(a => a.resumeScore);
-  const withAssessment = applicants.filter(a => a.assessmentScore);
-  const withInterview  = applicants.filter(a => a.interviewScore);
+  const withResume = applicants.filter((a) => a.screening?.atsScore);
+  const withAssessment = applicants.filter((a) => a.assessmentScore);
+  const withInterview = applicants.filter((a) => a.interviewScore);
 
   const avg = (arr: Applicant[], key: keyof Applicant) =>
     arr.length
       ? Math.round(arr.reduce((s, a) => s + (a[key] as number), 0) / arr.length)
       : null;
-
-  const avgResume     = avg(withResume, "resumeScore");
+  const avgResume = withResume.length
+  ? Math.round(
+      withResume.reduce(
+        (sum, a) => sum + (a.screening?.atsScore || 0),
+        0
+      ) / withResume.length
+    )
+  : null;
   const avgAssessment = avg(withAssessment, "assessmentScore");
-  const avgInterview  = avg(withInterview, "interviewScore");
+  const avgInterview = avg(withInterview, "interviewScore");
 
   const stats = [
     { label: "Total Applicants", value: applicants.length, icon: Users },
-    { label: "In Progress",      value: inProgressCount,   icon: Clock },
-    { label: "Selected",         value: selectedCount,      icon: CheckCircle2 },
-    { label: "Rejected",         value: rejectedCount,      icon: XCircle },
+    { label: "In Progress", value: inProgressCount, icon: Clock },
+    { label: "Selected", value: selectedCount, icon: CheckCircle2 },
+    { label: "Rejected", value: rejectedCount, icon: XCircle },
   ];
 
   return (
@@ -286,46 +311,70 @@ export default function JobDetail() {
 
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl md:text-3xl font-display font-bold">{job.title}</h1>
+            <h1 className="text-2xl md:text-3xl font-display font-bold">
+              {job.title}
+            </h1>
             <p className="text-sm text-muted-foreground mt-1">
-              {job.company} · Posted {new Date(job.createdAt).toLocaleDateString()}
+              {job.company} · Posted{" "}
+              {new Date(job.createdAt).toLocaleDateString()}
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Badge className={job.isActive
-              ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
-              : "bg-muted text-muted-foreground"
-            }>
+            <Badge
+              className={
+                job.isActive
+                  ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
+                  : "bg-muted text-muted-foreground"
+              }
+            >
               {job.isActive ? "Active" : "Closed"}
             </Badge>
-            <Button variant="outline" size="sm" onClick={toggleJobStatus} disabled={updatingJob}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={toggleJobStatus}
+              disabled={updatingJob}
+            >
               {job.isActive ? "Close Job" : "Reopen Job"}
             </Button>
-            <Button variant="destructive" size="sm" onClick={deleteJob} disabled={updatingJob}>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={deleteJob}
+              disabled={updatingJob}
+            >
               <Trash2 className="h-3.5 w-3.5 mr-1" /> Delete
             </Button>
           </div>
         </div>
-        
+
         {/* Job Description Structured View */}
         {job.job_description ? (
           <div className="mt-6 glass rounded-xl p-6 space-y-6 text-left">
             <div>
               <h3 className="text-xl font-bold mb-2">Job Summary</h3>
-              <p className="text-muted-foreground">{job.job_description.job_summary || "No summary provided."}</p>
+              <p className="text-muted-foreground">
+                {job.job_description.job_summary || "No summary provided."}
+              </p>
             </div>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <h4 className="font-semibold mb-2">Experience Required</h4>
-                <p className="text-sm text-muted-foreground">{job.job_description.experience_years || "Not specified"}</p>
+                <p className="text-sm text-muted-foreground">
+                  {job.job_description.experience_years || "Not specified"}
+                </p>
               </div>
               <div>
                 <h4 className="font-semibold mb-2">Mandatory Skills</h4>
                 <div className="flex flex-wrap gap-2">
-                  {job.job_description.mandatory_technical_skills?.map(skill => (
-                    <Badge key={skill} variant="default">{skill}</Badge>
-                  ))}
+                  {job.job_description.mandatory_technical_skills?.map(
+                    (skill) => (
+                      <Badge key={skill} variant="default">
+                        {skill}
+                      </Badge>
+                    ),
+                  )}
                 </div>
               </div>
             </div>
@@ -334,19 +383,24 @@ export default function JobDetail() {
               <div>
                 <h4 className="font-semibold mb-2">Key Responsibilities</h4>
                 <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
-                  {job.job_description.key_responsibilities?.map((resp, i) => <li key={i}>{resp}</li>)}
+                  {job.job_description.key_responsibilities?.map((resp, i) => (
+                    <li key={i}>{resp}</li>
+                  ))}
                 </ul>
               </div>
               <div>
                 <h4 className="font-semibold mb-2">Requirements</h4>
                 <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
-                  {job.job_description.requirements?.map((req, i) => <li key={i}>{req}</li>)}
+                  {job.job_description.requirements?.map((req, i) => (
+                    <li key={i}>{req}</li>
+                  ))}
                 </ul>
               </div>
             </div>
 
             {/* HR Only - Visible if not stripped by backend */}
-            {(job.job_description.assessment_plan?.length || job.job_description.interview_plan?.length) ? (
+            {job.job_description.assessment_plan?.length ||
+            job.job_description.interview_plan?.length ? (
               <div className="mt-6 border-t border-border/50 pt-6">
                 <h3 className="text-lg font-bold mb-4 text-amber-500 flex items-center gap-2">
                   <Star className="h-5 w-5" /> HR Internal Plans
@@ -354,12 +408,19 @@ export default function JobDetail() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {job.job_description.assessment_plan && (
                     <div className="bg-amber-500/10 p-4 rounded-lg border border-amber-500/20">
-                      <h4 className="font-semibold text-amber-600 mb-2">Assessment Plan</h4>
+                      <h4 className="font-semibold text-amber-600 mb-2">
+                        Assessment Plan
+                      </h4>
                       <ul className="space-y-3">
                         {job.job_description.assessment_plan.map((test, i) => (
                           <li key={i} className="text-sm">
-                            <strong>{test.test_type}</strong> ({test.suggested_duration_minutes}m)
-                            <div className="text-muted-foreground mt-1">{Array.isArray(test.focus_topics) ? test.focus_topics.join(", ") : test.focus_topics}</div>
+                            <strong>{test.test_type}</strong> (
+                            {test.suggested_duration_minutes}m)
+                            <div className="text-muted-foreground mt-1">
+                              {Array.isArray(test.focus_topics)
+                                ? test.focus_topics.join(", ")
+                                : test.focus_topics}
+                            </div>
                           </li>
                         ))}
                       </ul>
@@ -367,12 +428,18 @@ export default function JobDetail() {
                   )}
                   {job.job_description.interview_plan && (
                     <div className="bg-blue-500/10 p-4 rounded-lg border border-blue-500/20">
-                      <h4 className="font-semibold text-blue-600 mb-2">Interview Plan</h4>
+                      <h4 className="font-semibold text-blue-600 mb-2">
+                        Interview Plan
+                      </h4>
                       <ul className="space-y-3">
                         {job.job_description.interview_plan.map((round, i) => (
                           <li key={i} className="text-sm">
                             <strong>{round.interview_round}</strong>
-                            <div className="text-muted-foreground mt-1">{Array.isArray(round.focus_topics) ? round.focus_topics.join(", ") : round.focus_topics}</div>
+                            <div className="text-muted-foreground mt-1">
+                              {Array.isArray(round.focus_topics)
+                                ? round.focus_topics.join(", ")
+                                : round.focus_topics}
+                            </div>
                           </li>
                         ))}
                       </ul>
@@ -400,8 +467,12 @@ export default function JobDetail() {
             <div className="h-9 w-9 rounded-xl bg-primary/10 flex items-center justify-center mb-3">
               <s.icon className="h-4 w-4 text-primary" />
             </div>
-            <p className="text-xl md:text-2xl font-display font-bold">{s.value}</p>
-            <p className="text-xs md:text-sm text-muted-foreground">{s.label}</p>
+            <p className="text-xl md:text-2xl font-display font-bold">
+              {s.value}
+            </p>
+            <p className="text-xs md:text-sm text-muted-foreground">
+              {s.label}
+            </p>
           </div>
         ))}
       </div>
@@ -410,12 +481,14 @@ export default function JobDetail() {
       {applicants.length > 0 && (
         <div className="grid grid-cols-3 gap-4 mb-6">
           {[
-            { label: "Avg Resume Score",     value: avgResume },
+            { label: "Avg Resume Score", value: avgResume },
             { label: "Avg Assessment Score", value: avgAssessment },
-            { label: "Avg Interview Score",  value: avgInterview },
-          ].map(item => (
+            { label: "Avg Interview Score", value: avgInterview },
+          ].map((item) => (
             <div key={item.label} className="glass rounded-2xl p-4 text-center">
-              <p className={`text-2xl font-display font-bold ${scoreColor(item.value ?? 0)}`}>
+              <p
+                className={`text-2xl font-display font-bold ${scoreColor(item.value ?? 0)}`}
+              >
                 {item.value !== null ? `${item.value}%` : "—"}
               </p>
               <p className="text-xs text-muted-foreground mt-1">{item.label}</p>
@@ -434,7 +507,10 @@ export default function JobDetail() {
             </span>
           </h2>
           {USE_DUMMY_DATA && (
-            <Badge variant="outline" className="text-xs text-amber-500 border-amber-500/30">
+            <Badge
+              variant="outline"
+              className="text-xs text-amber-500 border-amber-500/30"
+            >
               Demo Mode
             </Badge>
           )}
@@ -452,58 +528,101 @@ export default function JobDetail() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border/50 bg-muted/20">
-                    <th className="text-left p-4 font-medium text-muted-foreground">Candidate</th>
-                    <th className="text-left p-4 font-medium text-muted-foreground">Status</th>
-                    <th className="text-left p-4 font-medium text-muted-foreground">Resume</th>
-                    <th className="text-left p-4 font-medium text-muted-foreground">Assessment</th>
-                    <th className="text-left p-4 font-medium text-muted-foreground">Interview</th>
-                    <th className="text-left p-4 font-medium text-muted-foreground">Applied</th>
+                    <th className="text-left p-4 font-medium text-muted-foreground">
+                      Candidate
+                    </th>
+                    <th className="text-left p-4 font-medium text-muted-foreground">
+                      Status
+                    </th>
+                    <th className="text-left p-4 font-medium text-muted-foreground">
+                      Resume
+                    </th>
+                    <th className="text-left p-4 font-medium text-muted-foreground">
+                      Assessment
+                    </th>
+                    <th className="text-left p-4 font-medium text-muted-foreground">
+                      Interview
+                    </th>
+                    <th className="text-left p-4 font-medium text-muted-foreground">
+                      Applied
+                    </th>
                     {/* ← View Profile column */}
-                    <th className="text-left p-4 font-medium text-muted-foreground">Profile</th>
+                    <th className="text-left p-4 font-medium text-muted-foreground">
+                      Profile
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
-                  {applicants.map(applicant => (
+                  {applicants.map((applicant) => (
                     <tr
                       key={applicant._id}
                       className="border-b border-border/30 hover:bg-muted/30 transition-colors"
                     >
                       <td className="p-4">
-                        <p className="font-medium">{applicant.candidate?.name || "—"}</p>
-                        <p className="text-xs text-muted-foreground">{applicant.candidate?.email || "—"}</p>
+                        <p className="font-medium">
+                          {applicant.candidate?.name || "—"}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {applicant.candidate?.email || "—"}
+                        </p>
                         {/* Skills preview */}
-                        {applicant.candidate?.skills && applicant.candidate.skills.length > 0 && (
-                          <div className="flex flex-wrap gap-1 mt-1">
-                            {applicant.candidate.skills.slice(0, 2).map(s => (
-                              <span key={s} className="text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded">
-                                {s}
-                              </span>
-                            ))}
-                            {applicant.candidate.skills.length > 2 && (
-                              <span className="text-xs text-muted-foreground">
-                                +{applicant.candidate.skills.length - 2}
-                              </span>
-                            )}
-                          </div>
-                        )}
+                        {applicant.candidate?.skills &&
+                          applicant.candidate.skills.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {applicant.candidate.skills
+                                .slice(0, 2)
+                                .map((s) => (
+                                  <span
+                                    key={s}
+                                    className="text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded"
+                                  >
+                                    {s}
+                                  </span>
+                                ))}
+                              {applicant.candidate.skills.length > 2 && (
+                                <span className="text-xs text-muted-foreground">
+                                  +{applicant.candidate.skills.length - 2}
+                                </span>
+                              )}
+                            </div>
+                          )}
                       </td>
 
                       <td className="p-4">
-                        <Badge className={statusColor[applicant.status] || "bg-muted text-muted-foreground"}>
+                        <Badge
+                          className={
+                            statusColor[applicant.status] ||
+                            "bg-muted text-muted-foreground"
+                          }
+                        >
                           {applicant.status}
                         </Badge>
                       </td>
 
-                      <td className={`p-4 font-semibold ${scoreColor(applicant.resumeScore)}`}>
-                        {applicant.resumeScore ? `${applicant.resumeScore}%` : "—"}
+                      <td
+                        className={`p-4 font-semibold ${scoreColor(
+                          applicant.screening?.atsScore,
+                        )}`}
+                      >
+                        {applicant.screening?.atsScore
+                          ? `${applicant.screening.atsScore}%`
+                          : "—"}
                       </td>
 
-                      <td className={`p-4 font-semibold ${scoreColor(applicant.assessmentScore)}`}>
-                        {applicant.assessmentScore ? `${applicant.assessmentScore}%` : "—"}
+                      <td
+                        className={`p-4 font-semibold ${scoreColor(applicant.assessmentScore)}`}
+                      >
+                        {applicant.assessmentScore
+                          ? `${applicant.assessmentScore}%`
+                          : "—"}
                       </td>
 
-                      <td className={`p-4 font-semibold ${scoreColor(applicant.interviewScore)}`}>
-                        {applicant.interviewScore ? `${applicant.interviewScore}%` : "—"}
+                      <td
+                        className={`p-4 font-semibold ${scoreColor(applicant.interviewScore)}`}
+                      >
+                        {applicant.interviewScore
+                          ? `${applicant.interviewScore}%`
+                          : "—"}
                       </td>
 
                       <td className="p-4 text-muted-foreground text-xs">
@@ -516,7 +635,9 @@ export default function JobDetail() {
                           size="sm"
                           variant="outline"
                           className="gap-1.5 text-xs"
-                          onClick={() => navigate(`/hr/candidate/${applicant.candidate._id}`)}
+                          onClick={() =>
+                            navigate(`/hr/candidate/${applicant.candidate._id}`)
+                          }
                         >
                           <Eye className="h-3.5 w-3.5" />
                           View
@@ -530,27 +651,42 @@ export default function JobDetail() {
 
             {/* Mobile Cards */}
             <div className="md:hidden divide-y divide-border/30">
-              {applicants.map(applicant => (
+              {applicants.map((applicant) => (
                 <div key={applicant._id} className="p-4 space-y-3">
                   <div className="flex items-start justify-between gap-2">
                     <div>
-                      <p className="font-medium">{applicant.candidate?.name || "—"}</p>
-                      <p className="text-xs text-muted-foreground">{applicant.candidate?.email || "—"}</p>
+                      <p className="font-medium">
+                        {applicant.candidate?.name || "—"}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {applicant.candidate?.email || "—"}
+                      </p>
                     </div>
-                    <Badge className={`shrink-0 ${statusColor[applicant.status] || ""}`}>
+                    <Badge
+                      className={`shrink-0 ${statusColor[applicant.status] || ""}`}
+                    >
                       {applicant.status}
                     </Badge>
                   </div>
 
                   <div className="flex gap-4 text-xs">
-                    <span className={scoreColor(applicant.resumeScore)}>
-                      Resume: {applicant.resumeScore ? `${applicant.resumeScore}%` : "—"}
+                    <span className={scoreColor(applicant.screening?.atsScore)}>
+                      Resume:{" "}
+                      {applicant.screening?.atsScore
+                        ? `${applicant.screening.atsScore}%`
+                        : "—"}
                     </span>
                     <span className={scoreColor(applicant.assessmentScore)}>
-                      Assessment: {applicant.assessmentScore ? `${applicant.assessmentScore}%` : "—"}
+                      Assessment:{" "}
+                      {applicant.assessmentScore
+                        ? `${applicant.assessmentScore}%`
+                        : "—"}
                     </span>
                     <span className={scoreColor(applicant.interviewScore)}>
-                      Interview: {applicant.interviewScore ? `${applicant.interviewScore}%` : "—"}
+                      Interview:{" "}
+                      {applicant.interviewScore
+                        ? `${applicant.interviewScore}%`
+                        : "—"}
                     </span>
                   </div>
 
@@ -559,7 +695,9 @@ export default function JobDetail() {
                     size="sm"
                     variant="outline"
                     className="w-full gap-2 text-xs"
-                    onClick={() => navigate(`/hr/candidate/${applicant.candidate._id}`)}
+                    onClick={() =>
+                      navigate(`/hr/candidate/${applicant.candidate._id}`)
+                    }
                   >
                     <Eye className="h-3.5 w-3.5" />
                     View Candidate Profile

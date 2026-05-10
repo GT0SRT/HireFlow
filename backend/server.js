@@ -20,7 +20,7 @@ console.log("========================");
 const app = express();
 
 
-
+const path = require("path");
 app.use(express.json());
 app.use(cookieParser());
 
@@ -59,7 +59,21 @@ app.use("/api/applications", require("./routes/applicationRoutes"));
 app.use("/api/ai", require("./routes/aiRoutes"));
 app.use("/api/profile", require("./routes/profileRoutes"));
 app.use("/api/assessments", require("./routes/assessmentRoutes"));
-app.use("/uploads", express.static("uploads"));
+// app.use("/uploads", express.static("uploads"));
+
+
+// ✅ Serve static files with proper headers
+app.use("/uploads", express.static(path.join(__dirname, "uploads"), {
+  setHeaders: (res, filepath) => {
+    if (filepath.endsWith('.pdf')) {
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', 'inline'); // ✅ Browser mein open ho
+    } else if (filepath.endsWith('.doc') || filepath.endsWith('.docx')) {
+      res.setHeader('Content-Type', 'application/msword');
+      res.setHeader('Content-Disposition', 'inline');
+    }
+  }
+}));
 
 // Health check
 app.get("/", (req, res) => res.json({ message: "HireFlow API running" }));

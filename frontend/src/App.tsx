@@ -24,7 +24,7 @@ import Profile from "./pages/candidate/Profile";
 
 import Dashboard from "./pages/hr/Dashboard";
 import JobDetail from "./pages/hr/JobDetail";
-import CandidateDetail from "./pages/hr/CandidateDetail";
+
 import JobsList from "./pages/hr/JobsList";
 import EndedJobs from "./pages/hr/EndedJobs";
 import HRProfile from "./pages/hr/Profile";
@@ -93,10 +93,7 @@ const App = () => (
                 <Route path="jobs/ended" element={<EndedJobs />} />
                 <Route path="profile" element={<HRProfile />} />
                 <Route path="jobs/:jobId" element={<JobDetail />} />
-                <Route
-                  path="candidate/:candidateId"
-                  element={<CandidateDetail />}
-                />
+               
               </Route>
 
               <Route path="*" element={<NotFound />} />

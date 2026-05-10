@@ -76,14 +76,16 @@ export default function CandidateJobDetail() {
   const interviewPlan = job.job_description?.interview_plan || [];
 
   return (
-    <div className="max-w-4xl mx-auto text-left pt-5 pb-12">
-      <button
-        onClick={() => (window.history.length > 1 ? navigate(-1) : navigate("/jobs"))}
-        className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors mb-6"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        Back to Job Board
-      </button>
+    <div className="max-w-4xl mx-auto px-4 text-left pt-5 pb-12">
+      {user?.role === "candidate" && (
+        <button
+          onClick={() => (window.history.length > 1 ? navigate(-1) : navigate("/jobs"))}
+          className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors mb-6"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to Job Board
+        </button>
+      )}
 
       <div className="glass rounded-2xl p-6 md:p-8 mb-8 animate-fade-in relative overflow-hidden">
         <div className="absolute top-0 right-0 w-48 h-48 bg-primary/5 rounded-bl-full -z-10" />

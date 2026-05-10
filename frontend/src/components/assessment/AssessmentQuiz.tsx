@@ -8,13 +8,6 @@ export interface Question {
   topic: string;
 }
 
-// interface AssessmentQuizProps {
-//   questions: Question[];
-//   totalTime: number; // in seconds
-//   onSubmit: (answers: Record<string, string>) => void;
-//   loading: boolean;
-// }
-
 interface AssessmentQuizProps {
   questions: Question[];
   totalTime: number;
@@ -23,7 +16,6 @@ interface AssessmentQuizProps {
   onAnswersChange?: (answers: Record<string, string>) => void;
 }
 
-// export default function AssessmentQuiz({ questions, totalTime, onSubmit, loading }: AssessmentQuizProps) {
 export default function AssessmentQuiz({ questions, totalTime, onSubmit, loading, onAnswersChange }: AssessmentQuizProps){
   const [current, setCurrent] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});

@@ -246,9 +246,168 @@ const updateApplicationStatus = async (req, res) => {
   }
 };
 
+const generateAssessmentQuestions = async (req, res) => {
+  try {
+    const { applicationId, assessmentIndex } = req.params;
+    const application = await Application.findById(applicationId);
+    if (!application) return res.status(404).json({ message: "Application not found" });
+    if (application.candidate.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: "Not authorized" });
+    }
+
+    const idx = Number(assessmentIndex);
+    const assessmentItem = application.assessment?.[idx];
+    if (!assessmentItem) return res.status(404).json({ message: "Assessment not found" });
+
+    // Already generated — return cached
+    if (assessmentItem.questions && assessmentItem.questions.length > 0) {
+      let parsed = [];
+      try {
+        parsed = typeof assessmentItem.questions[0] === "string"
+          ? assessmentItem.questions.map((q) => JSON.parse(q))
+          : assessmentItem.questions;
+      } catch (e) {}
+      return res.json({ questions: parsed, assessment: assessmentItem });
+    }
+
+    // Call AI Engine
+    const AI_ENGINE_URL = process.env.AI_ENGINE_URL || "http://localhost:8000";
+    const assessmentPlan = {
+      tests: [
+        {
+          test_type: assessmentItem.testType,
+          focus_topics: assessmentItem.coveredTopics,
+          suggested_duration_minutes: assessmentItem.suggestedDurationMinutes || 30,
+        },
+      ],
+    };
+
+    const aiResponse = await fetch(`${AI_ENGINE_URL}/api/assesment-generator`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ internal_assessment_plan: assessmentPlan }),
+    });
+
+    if (!aiResponse.ok) {
+      return res.status(502).json({ message: "AI Engine failed to generate questions" });
+    }
+
+    const aiData = await aiResponse.json();
+    const rawQuestions = aiData?.assessments?.[0]?.questions || [];
+
+    const questionsForClient = rawQuestions.map((q, i) => ({
+      id: `q${i + 1}`,
+      question: q.question_text,
+      options: q.options,
+      topic: q.topic,
+    }));
+
+    const answersForDB = rawQuestions.map((q, i) =>
+      JSON.stringify({ id: `q${i + 1}`, correct_answer: q.correct_answer })
+    );
+
+    const questionsForDB = questionsForClient.map((q) => JSON.stringify(q));
+
+    application.assessment[idx].questions = questionsForDB;
+    application.assessment[idx].answers = answersForDB;
+    await application.save();
+
+    res.json({ questions: questionsForClient, assessment: application.assessment[idx] });
+  } catch (error) {
+    console.error("[GenerateQuestions] Error:", error);
+    res.status(500).json({ message: "Failed to generate assessment questions", error: error.message });
+  }
+};
+
+// @POST /api/applications/:applicationId/assessment/:assessmentIndex/submit
+const submitAssessment = async (req, res) => {
+  try {
+    const { applicationId, assessmentIndex } = req.params;
+    const { answers } = req.body;
+
+    const application = await Application.findById(applicationId);
+    if (!application) return res.status(404).json({ message: "Application not found" });
+    if (application.candidate.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: "Not authorized" });
+    }
+
+    const idx = Number(assessmentIndex);
+    const assessmentItem = application.assessment?.[idx];
+    if (!assessmentItem) return res.status(404).json({ message: "Assessment not found" });
+
+    if (assessmentItem.score != null) {
+      return res.json({ assessment: assessmentItem, alreadySubmitted: true });
+    }
+
+    const storedAnswers = assessmentItem.answers || [];
+    let correct = 0;
+    storedAnswers.forEach((ansStr) => {
+      try {
+        const ans = typeof ansStr === "string" ? JSON.parse(ansStr) : ansStr;
+        if (answers?.[ans.id] && answers[ans.id] === ans.correct_answer) correct++;
+      } catch (e) {}
+    });
+
+    // const total = storedAnswers.length || 1;
+    // const score = Math.round((correct / total) * 100);
+    // const threshold = assessmentItem.threshold || 60;
+
+    // application.assessment[idx].score = score;
+    // application.assessment[idx].completedAt = new Date();
+    // await application.save();
+
+    // res.json({ assessment: application.assessment[idx], score, threshold, passed: score >= threshold });
+
+    const total = storedAnswers.length || 1;
+    const score = Math.round((correct / total) * 100);
+    const threshold = assessmentItem.threshold || 60;
+    const passed = score >= threshold;
+
+    application.assessment[idx].score = score;
+    application.assessment[idx].completedAt = new Date();
+
+    if (passed) {
+      const totalAssessments = application.assessment.length;
+      const nextAssessmentIdx = idx + 1;
+      const allAssessmentsDone = nextAssessmentIdx >= totalAssessments;
+
+      if (allAssessmentsDone) {
+        // Sab assessments pass ho gaye — Interview ke liye ready
+        application.status = "Interview Scheduled";
+        application.progress = 55;
+      } else {
+        // Agle assessment ka wait
+        application.status = "Assessment Pending";
+        application.progress = 20 + Math.round((nextAssessmentIdx / totalAssessments) * 20);
+      }
+    } else {
+      // Fail — Reject karo
+      application.status = "Rejected";
+      application.progress = 0;
+    }
+
+    await application.save();
+
+    res.json({ 
+      assessment: application.assessment[idx], 
+      score, 
+      threshold, 
+      passed,
+      applicationStatus: application.status,
+      nextAssessmentIndex: passed && idx + 1 < application.assessment.length ? idx + 1 : null,
+    });
+  } 
+  catch (error) {
+    console.error("[SubmitAssessment] Error:", error);
+    res.status(500).json({ message: "Failed to submit assessment", error: error.message });
+  }
+};
+
 module.exports = {
   applyToJob,
   getMyApplications,
   getApplicationsForJob,
   updateApplicationStatus,
+  generateAssessmentQuestions,
+  submitAssessment,
 };

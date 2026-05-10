@@ -56,7 +56,6 @@ const App = () => (
                 }
               >
                 <Route path="jobs" element={<JobBoard />} />
-                <Route path="assessment" element={<AssessmentPage />} />
                 <Route path="jobs/:id" element={<CandidateJobDetail />} />
                 <Route path="applications" element={<MyApplications />} />
                 <Route

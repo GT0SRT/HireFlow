@@ -8,14 +8,23 @@ export interface Question {
   topic: string;
 }
 
+// interface AssessmentQuizProps {
+//   questions: Question[];
+//   totalTime: number; // in seconds
+//   onSubmit: (answers: Record<string, string>) => void;
+//   loading: boolean;
+// }
+
 interface AssessmentQuizProps {
   questions: Question[];
-  totalTime: number; // in seconds
+  totalTime: number;
   onSubmit: (answers: Record<string, string>) => void;
   loading: boolean;
+  onAnswersChange?: (answers: Record<string, string>) => void;
 }
 
-export default function AssessmentQuiz({ questions, totalTime, onSubmit, loading }: AssessmentQuizProps) {
+// export default function AssessmentQuiz({ questions, totalTime, onSubmit, loading }: AssessmentQuizProps) {
+export default function AssessmentQuiz({ questions, totalTime, onSubmit, loading, onAnswersChange }: AssessmentQuizProps){
   const [current, setCurrent] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [timeLeft, setTimeLeft] = useState(totalTime);
@@ -42,9 +51,17 @@ export default function AssessmentQuiz({ questions, totalTime, onSubmit, loading
   const secs = timeLeft % 60;
   const isUrgent = timeLeft < 60;
 
+  // const selectAnswer = (option: string) => {
+  //   setAnswers((prev) => ({ ...prev, [q.id]: option }));
+  // };
+
   const selectAnswer = (option: string) => {
-    setAnswers((prev) => ({ ...prev, [q.id]: option }));
-  };
+  setAnswers((prev) => {
+    const updated = { ...prev, [q.id]: option };
+    onAnswersChange?.(updated);
+    return updated;
+  });
+};
 
   const goToQuestion = (index: number) => setCurrent(index);
   const goPrevious = () => setCurrent((p) => Math.max(0, p - 1));

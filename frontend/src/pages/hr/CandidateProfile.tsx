@@ -1,6 +1,16 @@
+
+
+
 import { useEffect, useState } from "react";
-import { useParams, Link } from "react-router-dom";
-import { ArrowLeft, User, MapPin, Phone, FileText, ExternalLink } from "lucide-react";
+import { useParams, useNavigate } from "react-router-dom";
+import {
+  ArrowLeft,
+  User,
+  MapPin,
+  Phone,
+  FileText,
+  ExternalLink,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import api from "@/api/api";
@@ -18,35 +28,52 @@ interface CandidateProfile {
 
 export default function CandidateProfile() {
   const { userId } = useParams();
+  const navigate = useNavigate();
   const [candidate, setCandidate] = useState<CandidateProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api.get(`/profile/${userId}`)
+    api
+      .get(`/profile/${userId}`)
       .then(({ data }) => setCandidate(data))
       .catch(() => toast.error("Failed to load candidate profile"))
       .finally(() => setLoading(false));
   }, [userId]);
 
-  if (loading) return (
-    <div className="flex items-center justify-center h-64">
-      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-    </div>
-  );
+  const handleViewResume = () => {
+    if (!candidate?.resume) {
+      toast.error("Resume not available");
+      return;
+    }
+    
+    // Open in new tab - browser will handle display vs download
+    window.open(candidate.resume, "_blank", "noopener,noreferrer");
+  };
 
-  if (!candidate) return (
-    <div className="text-center py-16 text-muted-foreground">Profile not found</div>
-  );
+  if (loading)
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+      </div>
+    );
+
+  if (!candidate)
+    return (
+      <div className="text-center py-16 text-muted-foreground">
+        Profile not found
+      </div>
+    );
 
   return (
     <div className="max-w-2xl">
-      <Link
-        to={-1 as any}
-        className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6"
+      <Button
+        variant="ghost"
+        onClick={() => navigate(-1)}
+        className="mb-6 gap-2"
       >
         <ArrowLeft className="h-4 w-4" />
         Back
-      </Link>
+      </Button>
 
       {/* Header */}
       <div className="glass rounded-2xl p-6 mb-6">
@@ -55,7 +82,9 @@ export default function CandidateProfile() {
             <User className="h-8 w-8 text-primary" />
           </div>
           <div>
-            <h1 className="text-2xl font-display font-bold">{candidate.name}</h1>
+            <h1 className="text-2xl font-display font-bold">
+              {candidate.name}
+            </h1>
             <div className="flex flex-wrap gap-3 mt-1 text-sm text-muted-foreground">
               {candidate.location && (
                 <span className="flex items-center gap-1">
@@ -76,7 +105,9 @@ export default function CandidateProfile() {
       {candidate.bio && (
         <div className="glass rounded-2xl p-6 mb-6">
           <h3 className="font-display font-semibold mb-2">About</h3>
-          <p className="text-muted-foreground text-sm leading-relaxed">{candidate.bio}</p>
+          <p className="text-muted-foreground text-sm leading-relaxed">
+            {candidate.bio}
+          </p>
         </div>
       )}
 
@@ -85,8 +116,12 @@ export default function CandidateProfile() {
         <div className="glass rounded-2xl p-6 mb-6">
           <h3 className="font-display font-semibold mb-3">Skills</h3>
           <div className="flex flex-wrap gap-2">
-            {candidate.skills.map(s => (
-              <Badge key={s} variant="outline" className="bg-primary/5 border-primary/20 text-primary px-3 py-1">
+            {candidate.skills.map((s, index) => (
+              <Badge
+                key={index}
+                variant="outline"
+                className="bg-primary/5 border-primary/20 text-primary px-3 py-1"
+              >
                 {s}
               </Badge>
             ))}
@@ -95,7 +130,7 @@ export default function CandidateProfile() {
       )}
 
       {/* Resume */}
-      {candidate.resume && (
+      {candidate.resume ? (
         <div className="glass rounded-2xl p-6 mb-6">
           <h3 className="font-display font-semibold mb-3">Resume</h3>
           <div className="flex items-center gap-4 p-4 rounded-xl bg-primary/5 border border-primary/20">
@@ -104,14 +139,28 @@ export default function CandidateProfile() {
             </div>
             <div className="flex-1">
               <p className="font-medium text-sm">Resume available</p>
-              <p className="text-xs text-muted-foreground">{candidate.resume.split("/").pop()}</p>
+              <p className="text-xs text-muted-foreground">
+                Click to view or download
+              </p>
             </div>
-            <a href={candidate.resume} target="_blank" rel="noopener noreferrer">
-              <Button variant="outline" size="sm" className="gap-2">
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2"
+                onClick={handleViewResume}
+              >
                 <ExternalLink className="h-3.5 w-3.5" />
-                View Resume
+                View
               </Button>
-            </a>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="glass rounded-2xl p-6 mb-6">
+          <div className="flex items-center gap-3 text-muted-foreground">
+            <FileText className="h-5 w-5" />
+            <p className="text-sm">No resume uploaded yet</p>
           </div>
         </div>
       )}

@@ -1,147 +1,61 @@
-// const User = require("../models/User");
-// const multer = require("multer");
-// const path = require("path");
-// const fs = require("fs");
-
-// // ─── Multer Setup (resume upload) ───────────────────────────────
-// const storage = multer.diskStorage({
-//   destination: (req, file, cb) => {
-//     const dir = "uploads/resumes";
-//     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-//     cb(null, dir);
-//   },
-//   filename: (req, file, cb) => {
-//     const unique = `${req.user._id}-${Date.now()}${path.extname(file.originalname)}`;
-//     cb(null, unique);
-//   },
-// });
-
-// const upload = multer({
-//   storage,
-//   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB max
-//   fileFilter: (req, file, cb) => {
-//     const allowed = [".pdf", ".doc", ".docx"];
-//     const ext = path.extname(file.originalname).toLowerCase();
-//     if (allowed.includes(ext)) cb(null, true);
-//     else cb(new Error("Only PDF, DOC, DOCX allowed"));
-//   },
-// });
-
-// // @GET /api/profile/me — apna profile dekho
-// const getMyProfile = async (req, res) => {
-//   try {
-//     const user = await User.findById(req.user._id).select("-password -refreshToken");
-//     res.json(user);
-//   } catch (error) {
-//     res.status(500).json({ message: error.message });
-//   }
-// };
-
-// // @PUT /api/profile/update — profile update karo
-// const updateProfile = async (req, res) => {
-//   try {
-//     const { name, phone, location, bio, skills } = req.body;
-
-//     const updated = await User.findByIdAndUpdate(
-//       req.user._id,
-//       {
-//         name,
-//         phone,
-//         location,
-//         bio,
-//         // skills string aa sakti hai ya array — dono handle karo
-//         skills: Array.isArray(skills)
-//           ? skills
-//           : skills?.split(",").map(s => s.trim()).filter(Boolean),
-//       },
-//       { new: true }
-//     ).select("-password -refreshToken");
-
-//     res.json(updated);
-//   } catch (error) {
-//     res.status(500).json({ message: error.message });
-//   }
-// };
-
-// // @POST /api/profile/upload-resume — resume upload karo
-// const uploadResume = async (req, res) => {
-//   try {
-//     if (!req.file) {
-//       return res.status(400).json({ message: "No file uploaded" });
-//     }
-
-//     const resumeUrl = `${req.protocol}://${req.get("host")}/uploads/resumes/${req.file.filename}`;
-
-//     const updated = await User.findByIdAndUpdate(
-//       req.user._id,
-//       { resume: resumeUrl },
-//       { new: true }
-//     ).select("-password -refreshToken");
-
-//     res.json({ message: "Resume uploaded", resume: updated.resume, user: updated });
-//   } catch (error) {
-//     res.status(500).json({ message: error.message });
-//   }
-// };
-
-// // @GET /api/profile/:userId — HR candidate ka profile dekhe
-// const getCandidateProfile = async (req, res) => {
-//   try {
-//     const user = await User.findById(req.params.userId)
-//       .select("-password -refreshToken -refreshToken -email");
-
-//     if (!user) return res.status(404).json({ message: "User not found" });
-//     if (user.role !== "candidate") {
-//       return res.status(403).json({ message: "Not a candidate profile" });
-//     }
-
-//     res.json(user);
-//   } catch (error) {
-//     res.status(500).json({ message: error.message });
-//   }
-// };
-
-// module.exports = { getMyProfile, updateProfile, uploadResume, upload, getCandidateProfile };
-
-
-
-
-
-
-
-
-
 
 const User = require("../models/User");
 const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
 
-// ─── Multer Setup (resume upload) ───────────────────────────────
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const dir = "uploads/resumes";
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    cb(null, dir);
-  },
-  filename: (req, file, cb) => {
-    const unique = `${req.user._id}-${Date.now()}${path.extname(file.originalname)}`;
-    cb(null, unique);
-  },
-});
+// Check if Cloudinary is configured
+const useCloudinary = !!process.env.CLOUDINARY_CLOUD_NAME;
 
-const upload = multer({
-  storage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB max
-  fileFilter: (req, file, cb) => {
-    const allowed = [".pdf", ".doc", ".docx"];
-    const ext = path.extname(file.originalname).toLowerCase();
-    if (allowed.includes(ext)) cb(null, true);
-    else cb(new Error("Only PDF, DOC, DOCX allowed"));
-  },
-});
+let upload;
 
-// @GET /api/profile/me — apna profile dekho
+if (useCloudinary) {
+  // Cloudinary setup
+  const { cloudinary, storage } = require("../config/cloudinary");
+  
+  upload = multer({
+    storage: storage,
+    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB max
+    fileFilter: (req, file, cb) => {
+      const allowed = [
+        "application/pdf",
+        "application/msword",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      ];
+      if (allowed.includes(file.mimetype)) {
+        cb(null, true);
+      } else {
+        cb(new Error("Only PDF, DOC, DOCX allowed"), false);
+      }
+    },
+  });
+} else {
+  // Local storage setup
+  const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+      const dir = "uploads/resumes";
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+      cb(null, dir);
+    },
+    filename: (req, file, cb) => {
+      const unique = `${req.user._id}-${Date.now()}${path.extname(file.originalname)}`;
+      cb(null, unique);
+    },
+  });
+
+  upload = multer({
+    storage,
+    limits: { fileSize: 5 * 1024 * 1024 },
+    fileFilter: (req, file, cb) => {
+      const allowed = [".pdf", ".doc", ".docx"];
+      const ext = path.extname(file.originalname).toLowerCase();
+      if (allowed.includes(ext)) cb(null, true);
+      else cb(new Error("Only PDF, DOC, DOCX allowed"));
+    },
+  });
+}
+
+// @GET /api/profile/me
 const getMyProfile = async (req, res) => {
   try {
     const user = await User.findById(req.user._id).select("-password -refreshToken");
@@ -151,7 +65,7 @@ const getMyProfile = async (req, res) => {
   }
 };
 
-// @PUT /api/profile/update — profile update karo
+// @PUT /api/profile/update
 const updateProfile = async (req, res) => {
   try {
     const { name, phone, location, bio, skills } = req.body;
@@ -161,17 +75,15 @@ const updateProfile = async (req, res) => {
       phone,
       location,
       bio,
-      // skills string aa sakti hai ya array — dono handle karo
       skills: Array.isArray(skills)
         ? skills
-        : skills?.split(",").map(s => s.trim()).filter(Boolean),
+        : skills?.split(",").map((s) => s.trim()).filter(Boolean),
     };
 
-    const updated = await User.findByIdAndUpdate(
-      req.user._id,
-      updateData,
-      { returnDocument: "after", runValidators: true }
-    ).select("-password -refreshToken");
+    const updated = await User.findByIdAndUpdate(req.user._id, updateData, {
+      new: true,
+      runValidators: true,
+    }).select("-password -refreshToken");
 
     res.json({ message: "Profile updated successfully", user: updated });
   } catch (error) {
@@ -179,47 +91,82 @@ const updateProfile = async (req, res) => {
   }
 };
 
-// @POST /api/profile/upload-resume — resume upload karo
+// @POST /api/profile/upload-resume
 const uploadResume = async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ message: "No file uploaded" });
     }
 
-    // Previous resume delete karo agar hai
     const user = await User.findById(req.user._id);
-    if (user.resume) {
-      const oldFilename = user.resume.split('/').pop();
-      const oldPath = path.join("uploads/resumes", oldFilename);
-      if (fs.existsSync(oldPath)) {
-        fs.unlinkSync(oldPath);
+
+    if (useCloudinary) {
+      // Cloudinary upload
+      const { cloudinary } = require("../config/cloudinary");
+      
+      // Delete old resume from Cloudinary
+      if (user.resume && user.resumePublicId) {
+        try {
+          await cloudinary.uploader.destroy(user.resumePublicId, {
+            resource_type: "raw", // Trying raw first (for older uploads)
+          });
+        } catch (error) {
+          console.log("Error deleting old resume:", error);
+        }
       }
+
+      const resumeUrl = req.file.path; // Cloudinary URL
+      const publicId = req.file.filename;
+
+      const updated = await User.findByIdAndUpdate(
+        req.user._id,
+        {
+          resume: resumeUrl,
+          resumePublicId: publicId,
+        },
+        { new: true }
+      ).select("-password -refreshToken");
+
+      return res.json({
+        message: "Resume uploaded successfully",
+        resume: updated.resume,
+        user: updated,
+      });
+    } else {
+      // Local storage
+      if (user.resume) {
+        const oldFilename = user.resume.split("/").pop();
+        const oldPath = path.join(__dirname, "..", "uploads", "resumes", oldFilename);
+        if (fs.existsSync(oldPath)) {
+          fs.unlinkSync(oldPath);
+        }
+      }
+
+      const baseUrl = process.env.BASE_URL || `http://localhost:${process.env.PORT || 5000}`;
+      const resumeUrl = `${baseUrl}/uploads/resumes/${req.file.filename}`;
+
+      const updated = await User.findByIdAndUpdate(
+        req.user._id,
+        { resume: resumeUrl },
+        { new: true }
+      ).select("-password -refreshToken");
+
+      res.json({
+        message: "Resume uploaded successfully",
+        resume: updated.resume,
+        user: updated,
+      });
     }
-
-    // New resume URL save karo
-    const resumeUrl = `/uploads/resumes/${req.file.filename}`;
-
-    const updated = await User.findByIdAndUpdate(
-      req.user._id,
-      { resume: resumeUrl },
-      { new: true }
-    ).select("-password -refreshToken");
-
-    res.json({ 
-      message: "Resume uploaded successfully", 
-      resume: updated.resume, 
-      user: updated 
-    });
   } catch (error) {
+    console.error("Resume upload error:", error);
     res.status(500).json({ message: error.message });
   }
 };
 
-// @GET /api/profile/:userId — HR candidate ka profile dekhe
+// @GET /api/profile/:userId
 const getCandidateProfile = async (req, res) => {
   try {
-    const user = await User.findById(req.params.userId)
-      .select("-password -refreshToken");
+    const user = await User.findById(req.params.userId).select("-password -refreshToken");
 
     if (!user) return res.status(404).json({ message: "User not found" });
     if (user.role !== "candidate") {
@@ -232,7 +179,7 @@ const getCandidateProfile = async (req, res) => {
   }
 };
 
-// @GET /api/profile/resume/:userId — HR resume download/view kar sake
+// @GET /api/profile/resume/:userId
 const viewCandidateResume = async (req, res) => {
   try {
     const user = await User.findById(req.params.userId);
@@ -245,25 +192,35 @@ const viewCandidateResume = async (req, res) => {
       return res.status(404).json({ message: "Resume not uploaded yet" });
     }
 
-    // Resume file path
-    const resumePath = path.join(__dirname, "..", user.resume);
-    
-    if (!fs.existsSync(resumePath)) {
-      return res.status(404).json({ message: "Resume file not found" });
+    // If Cloudinary or external URL - redirect
+    if (user.resume.includes("cloudinary.com") || user.resume.startsWith("http")) {
+      return res.redirect(user.resume);
     }
 
-    // File send karo with proper headers
-    res.sendFile(resumePath);
+    // If local file
+    const filename = user.resume.split("/").pop();
+    const filePath = path.join(__dirname, "..", "uploads", "resumes", filename);
+
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ message: "Resume file not found on server" });
+    }
+
+    // Set headers to display in browser
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `inline; filename="${filename}"`);
+    
+    res.sendFile(filePath);
   } catch (error) {
+    console.error("View resume error:", error);
     res.status(500).json({ message: error.message });
   }
 };
 
-module.exports = { 
-  getMyProfile, 
-  updateProfile, 
-  uploadResume, 
-  upload, 
+module.exports = {
+  getMyProfile,
+  updateProfile,
+  uploadResume,
+  upload,
   getCandidateProfile,
-  viewCandidateResume 
+  viewCandidateResume,
 };

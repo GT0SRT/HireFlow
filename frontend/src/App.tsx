@@ -12,6 +12,10 @@ import Index from "./pages/Index";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 
+import InterviewSession from "@/pages/candidate/InterviewSession";
+import InterviewResult from "@/pages/candidate/InterviewResult";
+import InterviewReports from "@/pages/hr/InterviewReports";
+
 import CandidateLayout from "./components/CandidateLayout";
 import HRLayout from "./components/HRLayout";
 
@@ -19,7 +23,6 @@ import JobBoard from "./pages/candidate/JobBoard";
 import CandidateJobDetail from "./pages/candidate/JobDetail";
 import MyApplications from "./pages/candidate/MyApplications";
 import AssessmentPage from "./pages/candidate/AssessmentPage";
-import InterviewPage from "./pages/candidate/InterviewPage";
 import Profile from "./pages/candidate/Profile";
 
 import Dashboard from "./pages/hr/Dashboard";
@@ -47,7 +50,28 @@ const App = () => (
               <Route path="/" element={<Index />} />
               <Route path="/login" element={<Login />} />
               <Route path="/signup" element={<Signup />} />
-               <Route path="/auth/google/success" element={<GoogleAuthSuccess />} />
+              <Route
+                path="/auth/google/success"
+                element={<GoogleAuthSuccess />}
+              />
+
+    
+              <Route
+                path="/candidate/interview/:applicationId"
+                element={
+                  <ProtectedRoute allowedRole="candidate">
+                    <InterviewSession />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/candidate/interview-result/:interviewId"
+                element={
+                  <ProtectedRoute allowedRole="candidate">
+                    <InterviewResult />
+                  </ProtectedRoute>
+                }
+              />
 
               <Route
                 path="/candidate"
@@ -65,16 +89,12 @@ const App = () => (
                   path="applications/:applicationId/assessment/:assessmentIndex"
                   element={<AssessmentPage />}
                 />
-                <Route
-                  path="applications/:applicationId/interview/:interviewIndex"
-                  element={<InterviewPage />}
-                />
+               
                 <Route path="profile" element={<Profile />} />
               </Route>
 
               <Route path="/jobs" element={<JobBoard />} />
               <Route path="/jobs/:id" element={<CandidateJobDetail />} />
-
               <Route
                 path="/hr"
                 element={
@@ -87,15 +107,14 @@ const App = () => (
                   path="candidate/:userId"
                   element={<CandidateProfile />}
                 />
-               
+
                 <Route path="dashboard" element={<Dashboard />} />
                 <Route path="jobs" element={<JobsList />} />
                 <Route path="jobs/ended" element={<EndedJobs />} />
                 <Route path="profile" element={<HRProfile />} />
+                <Route path="/hr/interviews/:jobId" element={<InterviewReports />}/>
                 <Route path="jobs/:jobId" element={<JobDetail />} />
-               
               </Route>
-
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>

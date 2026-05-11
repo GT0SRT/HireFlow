@@ -61,7 +61,8 @@ app.use("/api/profile", require("./routes/profileRoutes"));
 app.use("/api/assessments", require("./routes/assessmentRoutes"));
 // app.use("/uploads", express.static("uploads"));
 
-
+// Add this line with other routes
+app.use("/api/interviews", require("./routes/interviewRoutes"));
 // ✅ Serve static files with proper headers
 app.use("/uploads", express.static(path.join(__dirname, "uploads"), {
   setHeaders: (res, filepath) => {

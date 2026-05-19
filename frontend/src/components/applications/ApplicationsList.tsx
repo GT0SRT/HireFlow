@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { getApplicationsForUI } from "@/lib/mock-data-service";
-import { CheckCircle2, XCircle, Clock, FileText, BarChart3 } from "lucide-react";
+import { CheckCircle2, XCircle, Clock, FileText } from "lucide-react";
 
 interface ApplicationsListProps {
   jobId?: string;

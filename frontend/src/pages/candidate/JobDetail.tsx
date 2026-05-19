@@ -45,6 +45,7 @@ export default function CandidateJobDetail() {
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const { user } = useAuth();
+  const [hasApplied, setHasApplied] = useState(false);
 
   useEffect(() => {
     if (!id) {
@@ -60,7 +61,16 @@ export default function CandidateJobDetail() {
         navigate("/jobs");
       })
       .finally(() => setLoading(false));
-  }, [id, navigate]);
+
+    if (user?.role === "candidate") {
+      api.get("/applications/my").then(({ data }) => {
+        const applied = data.some((app: any) => 
+          (typeof app.job === "string" ? app.job : app.job?._id) === id
+        );
+        setHasApplied(applied);
+      }).catch(() => {});
+    }
+  }, [id, navigate, user]);
 
   if (loading) {
     return (
@@ -107,14 +117,15 @@ export default function CandidateJobDetail() {
 
           <Button
             size="lg"
-            className={job.isActive ? "glow-primary shrink-0" : "shrink-0 opacity-50 cursor-not-allowed"}
-            disabled={!job.isActive}
+            className={hasApplied ? "shrink-0" : job.isActive ? "glow-primary shrink-0" : "shrink-0 opacity-50 cursor-not-allowed"}
+            disabled={!job.isActive && !hasApplied}
+            variant={hasApplied ? "outline" : "default"}
             onClick={() => {
               if (!user) return navigate('/login');
               setIsModalOpen(true);
             }}
           >
-            {job.isActive ? "Apply for this role" : "Applications Closed"}
+            {hasApplied ? "View Application Status" : job.isActive ? "Apply for this role" : "Applications Closed"}
           </Button>
         </div>
 

@@ -21,6 +21,16 @@ const applicationSchema = new mongoose.Schema(
       min: 0,
       max: 100,
     },
+    assessmentScore: {
+      type: Number,
+      min: 0,
+      max: 100,
+    },
+    interviewScore: {
+      type: Number,
+      min: 0,
+      max: 100,
+    },
     notes: {
       type: String,
       default: "",
@@ -59,6 +69,15 @@ const applicationSchema = new mongoose.Schema(
         score: { type: Number },
         threshold: { type: Number },
         completedAt: { type: Date },
+      },
+    ],
+    interviews: [
+      {
+        interview_round: { type: String, required: true },
+        focus_topics: [{ type: String }],
+        score: { type: Number },
+        status: { type: String },
+        date: { type: Date },
       },
     ],
   },

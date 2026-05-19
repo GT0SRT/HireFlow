@@ -1,15 +1,12 @@
 import os
+import json
 from dotenv import load_dotenv
-import google.generativeai as genai
-from key_manager import get_next_gemini_key
+from ai_provider import call_ai_with_fallback
 
 load_dotenv()
 
 
 def generate_structured_jd(title: str, brief_notes: str = None):
-    api_key = get_next_gemini_key()
-    genai.configure(api_key=api_key)
-    model = genai.GenerativeModel(os.getenv("GEMINI_MODEL_NAME"))
 
     context = brief_notes if brief_notes else "Apply standard industry expectations for this specific role and seniority."
 
@@ -71,21 +68,4 @@ def generate_structured_jd(title: str, brief_notes: str = None):
     }}
     """
 
-    response = model.generate_content(
-        prompt,
-        generation_config={"response_mime_type": "application/json"}
-    )
-    
-    import json
-    try:
-        clean_text = response.text.strip()
-        if clean_text.startswith("```json"):
-            clean_text = clean_text[7:]
-        elif clean_text.startswith("```"):
-            clean_text = clean_text[3:]
-        if clean_text.endswith("```"):
-            clean_text = clean_text[:-3]
-            
-        return json.loads(clean_text.strip())
-    except json.JSONDecodeError:
-         return {"error": "Failed to parse AI response into JSON format."}
+    return call_ai_with_fallback(prompt)

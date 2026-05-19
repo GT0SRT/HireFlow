@@ -1,6 +1,7 @@
 const Application = require("../models/Application");
 const Job = require("../models/Job");
 const { parseAndScoreResumeData } = require("./aiController");
+const logger = require('../utils/logger');
 
 const ATS_SHORTLIST_THRESHOLD = Number(process.env.ATS_SHORTLIST_THRESHOLD || 70);
 
@@ -99,7 +100,7 @@ const applyToJob = async (req, res) => {
     let resumeAnalysis;
     let atsResult;
     try {
-      console.log(`[Application] Starting resume parsing for job ${req.params.jobId}`);
+      logger.info('[Application] Starting resume parsing for job %s', req.params.jobId);
       const aiResult = await parseAndScoreResumeData(req.file, job.job_description || {}, req.body.cachedParsedResume);
       resumeAnalysis = aiResult.parsedResume;
       atsResult = aiResult.atsResult;
@@ -110,7 +111,7 @@ const applyToJob = async (req, res) => {
           error: process.env.NODE_ENV === "development" ? parseError.message : undefined,
         });
       }
-      console.error(`[Application] Resume parsing error: ${parseError.message}`);
+      logger.error('[Application] Resume parsing error: %s', parseError && (parseError.stack || parseError.message || parseError));
       return res.status(422).json({
         message: "Failed to parse resume. Please ensure the file is valid and contains readable text. Try with a different file format.",
         error: parseError.message
@@ -124,7 +125,7 @@ const applyToJob = async (req, res) => {
 
     // Check if resumeAnalysis is empty or invalid
     if (!resumeAnalysis || Object.keys(resumeAnalysis).length === 0) {
-      console.error(`[Application] Resume analysis is empty`);
+      logger.error('[Application] Resume analysis is empty for job %s', req.params.jobId);
       return res.status(422).json({
         message: "Resume parsing returned no data. Please ensure your resume contains readable text content.",
       });
@@ -137,7 +138,7 @@ const applyToJob = async (req, res) => {
     const parsedResume = mapParsedResume(resumeAnalysis);
     const assessment = mapAssessmentPlan(job.job_description?.assessment_plan || []);
 
-    console.log(`[Application] ATS Score: ${atsScore}, Status: ${screeningStatus}`);
+    logger.info('[Application] ATS Score: %s, Status: %s', atsScore, screeningStatus);
 
     const application = await Application.create({
       job: req.params.jobId,
@@ -175,7 +176,7 @@ const applyToJob = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error(`[Application] Unexpected error:`, error);
+    logger.error('[Application] Unexpected error: %o', error && (error.stack || error.message || error));
     res.status(500).json({
       message: "An error occurred while processing your application. Please try again.",
       error: process.env.NODE_ENV === "development" ? error.message : undefined
@@ -201,7 +202,11 @@ const getApplicationsForJob = async (req, res) => {
     const job = await Job.findById(req.params.jobId);
     if (!job) return res.status(404).json({ message: "Job not found" });
 
-    if (job.postedBy.toString() !== req.user._id.toString()) {
+    // Authorization: Allow if user posted the job, or if user is HR in development mode
+    const isAuthorized = job.postedBy?.toString() === req.user._id.toString() ||
+      (req.user.role === "hr" && process.env.NODE_ENV !== "production");
+
+    if (!isAuthorized) {
       return res.status(403).json({ message: "Not authorized" });
     }
 
@@ -266,7 +271,7 @@ const generateAssessmentQuestions = async (req, res) => {
         parsed = typeof assessmentItem.questions[0] === "string"
           ? assessmentItem.questions.map((q) => JSON.parse(q))
           : assessmentItem.questions;
-      } catch (e) {}
+      } catch (e) { }
       return res.json({ questions: parsed, assessment: assessmentItem });
     }
 
@@ -288,11 +293,37 @@ const generateAssessmentQuestions = async (req, res) => {
       body: JSON.stringify({ internal_assessment_plan: assessmentPlan }),
     });
 
+    const aiResponseText = await aiResponse.text();
+
     if (!aiResponse.ok) {
-      return res.status(502).json({ message: "AI Engine failed to generate questions" });
+      let errorMsg = aiResponseText;
+      try {
+        const parsed = JSON.parse(aiResponseText);
+        errorMsg = parsed.detail || parsed.message || JSON.stringify(parsed);
+      } catch (e) {
+        if (aiResponseText.trim().startsWith("<")) {
+          errorMsg = `HTML response (Status: ${aiResponse.status})`;
+        } else {
+          errorMsg = aiResponseText.length > 200 ? aiResponseText.substring(0, 200) + '...' : aiResponseText;
+        }
+      }
+      return res.status(502).json({ message: `AI Engine failed to generate questions: ${errorMsg}` });
     }
 
-    const aiData = await aiResponse.json();
+    let aiData;
+    try {
+      aiData = JSON.parse(aiResponseText);
+    } catch (e) {
+      if (aiResponseText.trim().startsWith("<")) {
+        return res.status(502).json({ message: "AI Engine returned an HTML response instead of JSON." });
+      }
+      return res.status(502).json({ message: "AI Engine returned invalid JSON." });
+    }
+
+    if (aiData.error) {
+      return res.status(502).json({ message: `AI Engine Error: ${aiData.error}` });
+    }
+
     const rawQuestions = aiData?.assessments?.[0]?.questions || [];
 
     const questionsForClient = rawQuestions.map((q, i) => ({
@@ -314,7 +345,7 @@ const generateAssessmentQuestions = async (req, res) => {
 
     res.json({ questions: questionsForClient, assessment: application.assessment[idx] });
   } catch (error) {
-    console.error("[GenerateQuestions] Error:", error);
+    logger.error("[GenerateQuestions] Error: %o", error);
     res.status(500).json({ message: "Failed to generate assessment questions", error: error.message });
   }
 };
@@ -345,7 +376,7 @@ const submitAssessment = async (req, res) => {
       try {
         const ans = typeof ansStr === "string" ? JSON.parse(ansStr) : ansStr;
         if (answers?.[ans.id] && answers[ans.id] === ans.correct_answer) correct++;
-      } catch (e) {}
+      } catch (e) { }
     });
 
     // const total = storedAnswers.length || 1;
@@ -388,17 +419,17 @@ const submitAssessment = async (req, res) => {
 
     await application.save();
 
-    res.json({ 
-      assessment: application.assessment[idx], 
-      score, 
-      threshold, 
+    res.json({
+      assessment: application.assessment[idx],
+      score,
+      threshold,
       passed,
       applicationStatus: application.status,
       nextAssessmentIndex: passed && idx + 1 < application.assessment.length ? idx + 1 : null,
     });
-  } 
+  }
   catch (error) {
-    console.error("[SubmitAssessment] Error:", error);
+    logger.error("[SubmitAssessment] Error: %o", error);
     res.status(500).json({ message: "Failed to submit assessment", error: error.message });
   }
 };

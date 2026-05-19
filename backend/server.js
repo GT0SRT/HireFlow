@@ -9,18 +9,19 @@ const passport = require("./config/passport");
 dotenv.config();
 connectDB();
 
-console.log("=== Environment Check ===");
-console.log("PORT:", process.env.PORT);
-console.log("MONGO_URI:", process.env.MONGO_URI ? "✅ Set" : "❌ Missing");
-console.log("JWT_SECRET:", process.env.JWT_SECRET ? "✅ Set" : "❌ Missing");
-console.log("GOOGLE_CLIENT_ID:", process.env.GOOGLE_CLIENT_ID ? "✅ Set" : "❌ Missing");
-console.log("GOOGLE_CLIENT_SECRET:", process.env.GOOGLE_CLIENT_SECRET ? "✅ Set" : "❌ Missing");
-console.log("========================");
+const path = require("path");
+const logger = require("./utils/logger");
+
+logger.info("=== Environment Check ===");
+logger.info("PORT: %s", process.env.PORT);
+logger.info("MONGO_URI: %s", process.env.MONGO_URI ? "✅ Set" : "❌ Missing");
+logger.info("JWT_SECRET: %s", process.env.JWT_SECRET ? "✅ Set" : "❌ Missing");
+logger.info("GOOGLE_CLIENT_ID: %s", process.env.GOOGLE_CLIENT_ID ? "✅ Set" : "❌ Missing");
+logger.info("GOOGLE_CLIENT_SECRET: %s", process.env.GOOGLE_CLIENT_SECRET ? "✅ Set" : "❌ Missing");
+logger.info("========================");
 
 const app = express();
-
-
-const path = require("path");
+const errorMiddleware = require("./middleware/errorMiddleware");
 app.use(express.json());
 app.use(cookieParser());
 
@@ -110,4 +111,17 @@ app.get("/api/health/ai-engine", async (req, res) => {
 
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(PORT, () => logger.info(`Server running on port ${PORT}`));
+
+// Graceful error handlers
+process.on('uncaughtException', (err) => {
+  logger.error('Uncaught Exception: %s', err.stack || err.message);
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason) => {
+  logger.error('Unhandled Rejection: %o', reason);
+});
+
+// Use centralized error middleware
+app.use(errorMiddleware);

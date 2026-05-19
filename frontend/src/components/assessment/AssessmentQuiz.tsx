@@ -148,7 +148,7 @@ export default function AssessmentQuiz({ questions, totalTime, onSubmit, loading
                     <span className="hidden sm:inline">Next</span> <ChevronRight className="w-4 h-4" />
                   </button>
                 ) : (
-                  <button onClick={() => onSubmit(answers)} disabled={loading || answered < questions.length} className="cursor-pointer flex items-center gap-2 px-5 py-2.5 rounded-lg font-semibold bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all text-sm">
+                  <button onClick={() => onSubmit(answers)} disabled={loading} className="cursor-pointer flex items-center gap-2 px-5 py-2.5 rounded-lg font-semibold bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all text-sm">
                     {loading ? "Analyzing..." : "Submit"} <Send className="w-4 h-4" />
                   </button>
                 )}

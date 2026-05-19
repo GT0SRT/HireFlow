@@ -1,0 +1,16 @@
+flowchart LR
+  Candidate[Candidate]
+  HR[HR]
+  AIEngine[AI Engine]
+  MongoDB[(MongoDB)]
+  WebApp((HireFlow Web App))
+
+  Candidate -->|Register / Login| WebApp
+  Candidate -->|Upload Resume / Apply| WebApp
+  Candidate -->|Take Assessment / View Status| WebApp
+  HR -->|Create Jobs / Review Applications| WebApp
+
+  WebApp -->|Store Users, Jobs, Applications| MongoDB
+  WebApp -->|Parse Resume / Score ATS / Generate Questions| AIEngine
+  AIEngine -->|Parsed Resume / ATS Score / Assessment Questions| WebApp
+  MongoDB -->|Profiles / Jobs / Application State| WebApp

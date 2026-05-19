@@ -1,17 +1,9 @@
 import os
 import json
-from xml.parsers.expat import model
 from dotenv import load_dotenv
-import google.generativeai as genai
+from ai_provider import call_ai_with_fallback
 
 load_dotenv()
-
-api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
-if not api_key:
-    raise RuntimeError("Missing Gemini API key.")
-
-genai.configure(api_key=api_key)
-model = genai.GenerativeModel(os.getenv("GEMINI_MODEL_NAME"))
 
 def score_resume(jd_json_data, resume_json_data):
     """
@@ -45,24 +37,4 @@ def score_resume(jd_json_data, resume_json_data):
     }}
     """
 
-    try:
-        response = model.generate_content(
-            prompt,
-            generation_config={"response_mime_type": "application/json"}
-        )
-        
-        clean_text = response.text.strip()
-        if clean_text.startswith("```json"):
-            clean_text = clean_text[7:]
-        elif clean_text.startswith("```"):
-            clean_text = clean_text[3:]
-        if clean_text.endswith("```"):
-            clean_text = clean_text[:-3]
-
-        scoring_result = json.loads(clean_text.strip())
-        return scoring_result
-
-    except json.JSONDecodeError:
-         return {"error": "Failed to parse scoring response into JSON."}
-    except Exception as e:
-         return {"error": f"An API error occurred: {str(e)}"}
+    return call_ai_with_fallback(prompt)

@@ -1,17 +1,10 @@
 import os
 import json
 from typing import Any, Dict, List
-import google.generativeai as genai
 from dotenv import load_dotenv
+from ai_provider import call_ai_with_fallback
 
 load_dotenv()
-
-api_key = os.getenv("GEMINI_API_KEY")
-if not api_key:
-    raise RuntimeError("Missing Gemini API key.")
-
-genai.configure(api_key=api_key)
-model = genai.GenerativeModel(os.getenv("GEMINI_MODEL_NAME", "gemini-1.5-flash"))
 
 def generate_interview_questions(job_role: str, mandatory_skills: list, current_interview_plan: dict, resume_summary: dict, assessment_scores: dict) -> dict:
     prompt = f"""
@@ -38,23 +31,7 @@ def generate_interview_questions(job_role: str, mandatory_skills: list, current_
         ]
     }}
     """
-    try:
-        response = model.generate_content(
-            prompt,
-            generation_config={"response_mime_type": "application/json"}
-        )
-        
-        clean_text = response.text.strip()
-        if clean_text.startswith("```json"):
-            clean_text = clean_text[7:]
-        elif clean_text.startswith("```"):
-            clean_text = clean_text[3:]
-        if clean_text.endswith("```"):
-            clean_text = clean_text[:-3]
-            
-        return json.loads(clean_text.strip())
-    except Exception as e:
-        return {"error": str(e)}
+    return call_ai_with_fallback(prompt)
 
 def evaluate_final_interview(scores: list) -> dict:
     if not scores:

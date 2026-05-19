@@ -213,13 +213,13 @@
 //   try {
 //     // User is already authenticated by passport
 //     const user = req.user;
-    
+
 //     if (!user) {
 //       return res.redirect(
 //         `${process.env.FRONTEND_URL || process.env.CLIENT_URL}/login?error=authentication_failed`
 //       );
 //     }
-    
+
 //     // Generate JWT token
 //     const token = generateToken(user._id);
 
@@ -244,6 +244,7 @@
 
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
+const logger = require('../utils/logger');
 
 // Helper: generate tokens
 const generateTokens = (userId) => {
@@ -448,13 +449,13 @@ const googleCallback = async (req, res) => {
   try {
     // User is already authenticated by passport
     const user = req.user;
-    
+
     if (!user) {
       return res.redirect(
         `${process.env.CLIENT_URL || "http://localhost:5173"}/login?error=authentication_failed`
       );
     }
-    
+
     // Generate tokens (FIXED: using generateTokens instead of generateToken)
     const { accessToken, refreshToken } = generateTokens(user._id);
 
@@ -475,19 +476,19 @@ const googleCallback = async (req, res) => {
       `${process.env.CLIENT_URL || "http://localhost:5173"}/auth/google/success?token=${accessToken}&role=${user.role}`
     );
   } catch (error) {
-    console.error("Google callback error:", error);
+    logger.error('Google callback error: %o', error && (error.stack || error.message || error));
     res.redirect(
       `${process.env.CLIENT_URL || "http://localhost:5173"}/login?error=authentication_failed`
     );
   }
 };
 
-module.exports = { 
-  register, 
-  login, 
-  refreshAccessToken, 
-  logout, 
-  getMe, 
-  updateMe, 
-  googleCallback 
+module.exports = {
+  register,
+  login,
+  refreshAccessToken,
+  logout,
+  getMe,
+  updateMe,
+  googleCallback
 };

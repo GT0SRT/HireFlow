@@ -13,6 +13,11 @@ interface Job {
   title: string;
   isActive: boolean;
   createdAt: string;
+  applicants?: {
+    status?: string;
+    assessmentScore?: number;
+    interviewScore?: number;
+  }[];
 }
 
 export default function Dashboard() {
@@ -32,6 +37,13 @@ export default function Dashboard() {
 
   // Stats real jobs se calculate karo
   const activeJobs = recentJobs.filter(j => j.isActive).length;
+  const applicantCount = recentJobs.reduce((total, job) => total + (job.applicants?.length || 0), 0);
+  const interviewCount = recentJobs.reduce(
+    (total, job) =>
+      total +
+      (job.applicants?.filter((applicant) => applicant.status === "Interview Scheduled" || applicant.status === "Offered").length || 0),
+    0,
+  );
   const profileFields = [
     user?.company,
     user?.companyProfile?.industry,
@@ -44,8 +56,8 @@ export default function Dashboard() {
 
   const stats = [
     { label: "Active Jobs", value: activeJobs.toString(), icon: Briefcase, change: "Live postings" },
-    { label: "Applicants", value: "—", icon: Users, change: "Across all jobs" },
-    { label: "Interviews", value: "—", icon: FileCheck, change: "Scheduled" },
+    { label: "Applicants", value: applicantCount.toString(), icon: Users, change: "Across all jobs" },
+    { label: "Interviews", value: interviewCount.toString(), icon: FileCheck, change: "Scheduled" },
   ];
 
   return (

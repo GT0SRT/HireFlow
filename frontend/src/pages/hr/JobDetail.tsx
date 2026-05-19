@@ -21,6 +21,7 @@ type ApplicationStatus =
   | "Applied"
   | "Assessment Pending"
   | "Interview Scheduled"
+  | "Offered"
   | "Selected"
   | "Rejected";
 
@@ -72,10 +73,15 @@ interface Applicant {
   };
 }
 
+type ScoreEntry = {
+  score?: number;
+};
+
 const statusColor: Record<string, string> = {
   Applied: "bg-muted text-muted-foreground",
   "Assessment Pending": "bg-amber-500/10 text-amber-500 border-amber-500/20",
   "Interview Scheduled": "bg-blue-500/10 text-blue-500 border-blue-500/20",
+  Offered: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20",
   Selected: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20",
   Rejected: "bg-destructive/10 text-destructive border-destructive/20",
 };
@@ -96,31 +102,31 @@ export default function JobDetail() {
   const [loading, setLoading] = useState(true);
   const [updatingJob, setUpdatingJob] = useState(false);
 
-  const loadJobData = async () => {
-    if (!jobId) return;
-
-    try {
-      setLoading(true);
-      const [jobRes, applicationsRes] = await Promise.all([
-        api.get(`/jobs/${jobId}`),
-        api.get(`/applications/job/${jobId}`),
-      ]);
-      setJob(jobRes.data);
-      setApplicants(applicationsRes.data);
-    } catch (error: unknown) {
-      const message =
-        (error as { response?: { data?: { message?: string } } })?.response
-          ?.data?.message || "Failed to load job details";
-      toast.error(message);
-      navigate("/hr/dashboard");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    loadJobData();
-  }, [jobId]);
+    const loadJobData = async () => {
+      if (!jobId) return;
+
+      try {
+        setLoading(true);
+        const [jobRes, applicationsRes] = await Promise.all([
+          api.get(`/jobs/${jobId}`),
+          api.get(`/applications/job/${jobId}`),
+        ]);
+        setJob(jobRes.data);
+        setApplicants(applicationsRes.data);
+      } catch (error: unknown) {
+        const message =
+          (error as { response?: { data?: { message?: string } } })?.response
+            ?.data?.message || "Failed to load job details";
+        toast.error(message);
+        navigate("/hr/dashboard");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    void loadJobData();
+  }, [jobId, navigate]);
 
   const toggleJobStatus = async () => {
     if (!jobId || !job) return;
@@ -165,7 +171,7 @@ export default function JobDetail() {
 
   // ── Stats calculate karo real data se ───────────────────────
   const selectedCount = applicants.filter(
-    (a) => a.status === "Selected",
+    (a) => a.status === "Selected" || a.status === "Offered",
   ).length;
   const rejectedCount = applicants.filter(
     (a) => a.status === "Rejected",
@@ -175,16 +181,20 @@ export default function JobDetail() {
   const enrichedApplicants = applicants.map(app => {
     let aScore = app.assessmentScore;
     if (aScore == null) {
-      const arr = app.assessment || app.assessments || [];
-      const scored = arr.filter((x: any) => x.score != null);
-      if (scored.length) aScore = Math.round(scored.reduce((acc, curr) => acc + curr.score!, 0) / scored.length);
+      const arr = (app.assessment || app.assessments || []) as ScoreEntry[];
+      const scored = arr.filter((entry) => entry.score != null);
+      if (scored.length) {
+        aScore = Math.round(scored.reduce((acc, curr) => acc + (curr.score || 0), 0) / scored.length);
+      }
     }
     
     let iScore = app.interviewScore;
     if (iScore == null) {
-      const arr = app.interviews || [];
-      const scored = arr.filter((x: any) => x.score != null);
-      if (scored.length) iScore = Math.round(scored.reduce((acc, curr) => acc + curr.score!, 0) / scored.length);
+      const arr = (app.interviews || []) as ScoreEntry[];
+      const scored = arr.filter((entry) => entry.score != null);
+      if (scored.length) {
+        iScore = Math.round(scored.reduce((acc, curr) => acc + (curr.score || 0), 0) / scored.length);
+      }
     }
     
     return { ...app, computedAssessmentScore: aScore, computedInterviewScore: iScore };

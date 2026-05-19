@@ -1,0 +1,36 @@
+flowchart LR
+  Candidate[Candidate]
+  HR[HR]
+  AIEngine[AI Engine]
+  MongoDB[(MongoDB)]
+
+  subgraph WebApp[HireFlow Web App]
+    P1((1. Authentication & Profile))
+    P2((2. Job Browse & Apply))
+    P3((3. Resume Parse & ATS Screening))
+    P4((4. Assessment Generation & Attempt))
+    P5((5. Interview Scheduling & HR Review))
+  end
+
+  Candidate -->|Sign up / Login| P1
+  Candidate -->|Browse jobs / Apply| P2
+  Candidate -->|Upload resume| P3
+  Candidate -->|Start / Submit assessment| P4
+  Candidate -->|View status| P5
+
+  HR -->|Create jobs / Review pipeline| P2
+  HR -->|Shortlist / Reject / Offer| P5
+
+  P1 -->|Create / update user profile| MongoDB
+  P2 -->|Store application| MongoDB
+  P2 -->|Read job list| MongoDB
+  P3 -->|Read job description| MongoDB
+  P3 -->|Send resume + job data| AIEngine
+  AIEngine -->|Parsed resume + ATS score| P3
+  P3 -->|Save screening + parsed resume| MongoDB
+  P4 -->|Read assessment plan| MongoDB
+  P4 -->|Generate questions| AIEngine
+  AIEngine -->|Assessment questions| P4
+  P4 -->|Save questions / answers / score| MongoDB
+  P5 -->|Read application status| MongoDB
+  P5 -->|Update interview / offer status| MongoDB

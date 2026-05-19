@@ -7,9 +7,10 @@ const User = require("../models/User");
 
 // Check if Google credentials exist
 if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
-  console.warn("⚠️  Google OAuth credentials not found in .env file");
-  console.warn("⚠️  Google authentication will not be available");
-  console.warn("⚠️  Add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET to enable it");
+  const logger = require('../utils/logger');
+  logger.warn('Google OAuth credentials not found in .env file');
+  logger.warn('Google authentication will not be available');
+  logger.warn('Add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET to enable it');
 } else {
   // Only setup Google Strategy if credentials are available
   passport.use(

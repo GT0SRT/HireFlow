@@ -1,0 +1,43 @@
+erDiagram
+  USER {
+    ObjectId _id PK
+    string name
+    string email
+    string password
+    string role
+    string phone
+    string location
+    string bio
+    string resume
+    string company
+    string googleId
+  }
+
+  JOB {
+    ObjectId _id PK
+    string title
+    string company
+    string jobNumber
+    string location
+    string type
+    boolean isActive
+    ObjectId postedBy FK
+  }
+
+  APPLICATION {
+    ObjectId _id PK
+    ObjectId job FK
+    ObjectId candidate FK
+    string status
+    number progress
+    number assessmentScore
+    number interviewScore
+    mixed parsedResume
+    mixed screening
+    mixed assessment
+    mixed interviews
+  }
+
+  USER ||--o{ JOB : posts
+  USER ||--o{ APPLICATION : applies_for
+  JOB ||--o{ APPLICATION : receives

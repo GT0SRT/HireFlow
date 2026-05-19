@@ -1,4 +1,5 @@
 const Job = require("../models/Job");
+const Application = require("../models/Application");
 
 function _buildTestDescription(jd = {}) {
   const assessment = jd.assessment_plan || [];
@@ -24,8 +25,8 @@ const getJobs = async (req, res) => {
     if (location) filter.location = { $regex: location, $options: "i" };
 
     // Convert to integers and calculate skip logic
-    const pageNumber = parseInt(page, 10);
-    const limitNumber = parseInt(limit, 10);
+    const pageNumber = Math.max(1, parseInt(page, 10) || 1);
+    const limitNumber = Math.max(1, parseInt(limit, 10) || 10);
     const skip = (pageNumber - 1) * limitNumber;
 
     const jobs = await Job.find(filter)
@@ -98,7 +99,12 @@ const updateJob = async (req, res) => {
       return res.status(403).json({ message: "Not authorized to update this job" });
     }
 
-    const updated = await Job.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    // Prevent reassignment of job ownership
+    const updateData = { ...req.body };
+    delete updateData.postedBy;
+    delete updateData.company;
+
+    const updated = await Job.findByIdAndUpdate(req.params.id, updateData, { new: true });
     res.json(updated);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -125,8 +131,29 @@ const deleteJob = async (req, res) => {
 // @GET /api/jobs/my-jobs  — HR: see only their posted jobs
 const getMyJobs = async (req, res) => {
   try {
-    const jobs = await Job.find({ postedBy: req.user._id }).sort({ createdAt: -1 });
-    res.json(jobs);
+    const jobFilter = process.env.NODE_ENV === "production" ? { postedBy: req.user._id } : {};
+    const jobs = await Job.find(jobFilter).sort({ createdAt: -1 });
+
+    const jobIds = jobs.map((job) => job._id);
+    const applications = jobIds.length
+      ? await Application.find({ job: { $in: jobIds } })
+        .populate("candidate", "name email skills resume")
+        .sort({ createdAt: -1 })
+      : [];
+
+    const applicationsByJob = applications.reduce((acc, application) => {
+      const jobKey = application.job.toString();
+      if (!acc[jobKey]) acc[jobKey] = [];
+      acc[jobKey].push(application);
+      return acc;
+    }, {});
+
+    const jobsWithApplicants = jobs.map((job) => ({
+      ...job.toObject(),
+      applicants: applicationsByJob[job._id.toString()] || [],
+    }));
+
+    res.json(jobsWithApplicants);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

@@ -3,6 +3,7 @@ const User = require("../models/User");
 const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
+const logger = require("../utils/logger");
 
 // Check if Cloudinary is configured
 const useCloudinary = !!process.env.CLOUDINARY_CLOUD_NAME;
@@ -12,7 +13,7 @@ let upload;
 if (useCloudinary) {
   // Cloudinary setup
   const { cloudinary, storage } = require("../config/cloudinary");
-  
+
   upload = multer({
     storage: storage,
     limits: { fileSize: 5 * 1024 * 1024 }, // 5MB max
@@ -77,7 +78,9 @@ const updateProfile = async (req, res) => {
       bio,
       skills: Array.isArray(skills)
         ? skills
-        : skills?.split(",").map((s) => s.trim()).filter(Boolean),
+        : typeof skills === "string"
+          ? skills.split(",").map((s) => s.trim()).filter(Boolean)
+          : undefined,
     };
 
     const updated = await User.findByIdAndUpdate(req.user._id, updateData, {
@@ -99,11 +102,12 @@ const uploadResume = async (req, res) => {
     }
 
     const user = await User.findById(req.user._id);
+    if (!user) return res.status(404).json({ message: "User not found" });
 
     if (useCloudinary) {
       // Cloudinary upload
       const { cloudinary } = require("../config/cloudinary");
-      
+
       // Delete old resume from Cloudinary
       if (user.resume && user.resumePublicId) {
         try {
@@ -111,7 +115,7 @@ const uploadResume = async (req, res) => {
             resource_type: "raw", // Trying raw first (for older uploads)
           });
         } catch (error) {
-          console.log("Error deleting old resume:", error);
+          logger.warn("Error deleting old resume: %o", error);
         }
       }
 
@@ -158,7 +162,7 @@ const uploadResume = async (req, res) => {
       });
     }
   } catch (error) {
-    console.error("Resume upload error:", error);
+    logger.error("Resume upload error: %o", error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -208,10 +212,10 @@ const viewCandidateResume = async (req, res) => {
     // Set headers to display in browser
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", `inline; filename="${filename}"`);
-    
+
     res.sendFile(filePath);
   } catch (error) {
-    console.error("View resume error:", error);
+    logger.error("View resume error: %o", error);
     res.status(500).json({ message: error.message });
   }
 };

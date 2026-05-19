@@ -3,7 +3,8 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import {
   FileText, CheckCircle, Clock, AlertCircle, ChevronDown, ChevronUp,
-  ClipboardCheck
+  ClipboardCheck,
+  ExternalLink
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -323,35 +324,41 @@ export default function MyApplications() {
                         <ClipboardCheck className="h-4 w-4 text-primary" />
                         <h4 className="font-display font-semibold text-sm md:text-base">Application Journey</h4>
                       </div>
-                      {(() => {
-                        if (app.screening?.status !== "Shortlisted" && app.status !== "Interview Scheduled" && app.status !== "Assessment Pending") return null;
-                        if (app.status === "Rejected" || app.status === "Offered") return null;
+                      <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                        <Button size="sm" variant="outline" className="w-full sm:w-auto gap-2" onClick={() => navigate(`/jobs/${app.job._id}`)}>
+                          <ExternalLink className="h-3.5 w-3.5" />
+                          View Job Details
+                        </Button>
+                        {(() => {
+                          if (app.screening?.status !== "Shortlisted" && app.status !== "Interview Scheduled" && app.status !== "Assessment Pending") return null;
+                          if (app.status === "Rejected" || app.status === "Offered") return null;
 
-                        const assessments = app.assessment || app.assessments || [];
-                        const nextAssessmentIndex = assessments.findIndex((a: AssessmentStep | null) => !a?.score && !a?.completedAt);
-                        if (nextAssessmentIndex >= 0) {
-                          return (
-                            <Button size="sm" className="w-full sm:w-auto glow-primary-sm gap-2" onClick={() => navigate(`/candidate/applications/${app._id}/assessment/${nextAssessmentIndex}`)}>
-                              Next Stage: Start Assessment {nextAssessmentIndex + 1}
-                            </Button>
-                          );
-                        }
+                          const assessments = app.assessment || app.assessments || [];
+                          const nextAssessmentIndex = assessments.findIndex((a: AssessmentStep | null) => !a?.score && !a?.completedAt);
+                          if (nextAssessmentIndex >= 0) {
+                            return (
+                              <Button size="sm" className="w-full sm:w-auto glow-primary-sm gap-2" onClick={() => navigate(`/candidate/applications/${app._id}/assessment/${nextAssessmentIndex}`)}>
+                                Next Stage: Start Assessment {nextAssessmentIndex + 1}
+                              </Button>
+                            );
+                          }
 
-                        const interviews = app.interviews || [];
-                        const nextInterviewIndex = interviews.findIndex((i: InterviewStep) => {
-                          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                          const status = (i as any)?.status;
-                          return !status || status === "pending" || status === "scheduled";
-                        });
-                        if (nextInterviewIndex >= 0) {
-                          return (
-                            <Button size="sm" className="w-full sm:w-auto glow-primary-sm gap-2" onClick={() => navigate(`/candidate/applications/${app._id}/interview/${nextInterviewIndex}`)}>
-                              Next Stage: Join Interview {nextInterviewIndex + 1}
-                            </Button>
-                          );
-                        }
-                        return null;
-                      })()}
+                          const interviews = app.interviews || [];
+                          const nextInterviewIndex = interviews.findIndex((i: InterviewStep) => {
+                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                            const status = (i as any)?.status;
+                            return !status || status === "pending" || status === "scheduled";
+                          });
+                          if (nextInterviewIndex >= 0) {
+                            return (
+                              <Button size="sm" className="w-full sm:w-auto glow-primary-sm gap-2" onClick={() => navigate(`/candidate/applications/${app._id}/interview/${nextInterviewIndex}`)}>
+                                Next Stage: Join Interview {nextInterviewIndex + 1}
+                              </Button>
+                            );
+                          }
+                          return null;
+                        })()}
+                      </div>
                     </div>
                     <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                       {journeyStages.map((stage) => (

@@ -4,9 +4,16 @@ import fitz
 from docx import Document
 from dotenv import load_dotenv
 from fastapi import UploadFile, HTTPException
-from ai_provider import call_ai_with_fallback
 
-load_dotenv()
+BASE_DIR = os.path.dirname(__file__)
+env_file = os.path.join(BASE_DIR, ".env")
+
+if os.path.exists(env_file):
+    load_dotenv(env_file, override=True)
+else:
+    load_dotenv(override=True)
+
+from ai_provider import call_ai_with_fallback
 
 
 async def extract_text_from_file(file: UploadFile) -> str:

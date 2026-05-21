@@ -3,11 +3,23 @@ import itertools
 from dotenv import load_dotenv
 
 BASE_DIR = os.path.dirname(__file__)
-load_dotenv(os.path.join(BASE_DIR, ".env"))
+env_file = os.path.join(BASE_DIR, ".env")
+
+# Load with override=True to ensure keys take precedence
+if os.path.exists(env_file):
+    load_dotenv(env_file, override=True)
+else:
+    # Fallback: just load from current environment
+    load_dotenv(override=True)
 
 # Load and parse multiple Gemini keys (comma separated)
 gemini_keys_str = os.getenv("GEMINI_API_KEYS") or os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY") or ""
 gemini_keys = [k.strip() for k in gemini_keys_str.split(",") if k.strip()]
+
+# Debug: log if keys are loaded (remove in production)
+if not gemini_keys:
+    import sys
+    print(f"[key_manager] WARNING: No Gemini keys loaded. ENV file: {env_file} (exists: {os.path.exists(env_file)})", file=sys.stderr)
 gemini_cycle = itertools.cycle(gemini_keys) if gemini_keys else None
 
 def get_next_gemini_key():

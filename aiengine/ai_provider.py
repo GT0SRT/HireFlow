@@ -4,10 +4,17 @@ import time
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
 import google.generativeai as genai
 from dotenv import load_dotenv
-import key_manager
 
 BASE_DIR = os.path.dirname(__file__)
-load_dotenv(os.path.join(BASE_DIR, ".env"))
+env_file = os.path.join(BASE_DIR, ".env")
+
+# Load with override=True to ensure keys take precedence
+if os.path.exists(env_file):
+    load_dotenv(env_file, override=True)
+else:
+    load_dotenv(override=True)
+
+import key_manager
 
 
 def _strip_codeblocks(text: str) -> str:

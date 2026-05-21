@@ -3,7 +3,8 @@ import json
 from dotenv import load_dotenv
 from ai_provider import call_ai_with_fallback
 
-load_dotenv()
+BASE_DIR = os.path.dirname(__file__)
+load_dotenv(os.path.join(BASE_DIR, ".env"))
 
 
 def generate_structured_jd(title: str, brief_notes: str = None):

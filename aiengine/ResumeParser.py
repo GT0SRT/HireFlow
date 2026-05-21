@@ -2,10 +2,9 @@ import os
 import io
 import fitz
 from docx import Document
-import google.generativeai as genai
 from dotenv import load_dotenv
 from fastapi import UploadFile, HTTPException
-from key_manager import get_next_gemini_key
+from ai_provider import call_ai_with_fallback
 
 load_dotenv()
 
@@ -37,10 +36,6 @@ async def process_resume_analysis(file: UploadFile):
     if not text.strip():
         return {"error": "Could not extract text from this document."}
 
-    api_key = get_next_gemini_key()
-    genai.configure(api_key=api_key)
-    model = genai.GenerativeModel(os.getenv("GEMINI_MODEL_NAME"))
-
     prompt = f"""
     You are an expert Technical Recruiter and AI Assessor. Analyze the following resume text and extract the key information.
     
@@ -65,21 +60,12 @@ async def process_resume_analysis(file: UploadFile):
     Do not include any markdown formatting like ```json or any conversational text outside the JSON object.
     """
 
-    response = model.generate_content(
-        prompt,
-        generation_config={"response_mime_type": "application/json"}
-    )
-    
-    import json
-    try:
-        clean_text = response.text.strip()
-        if clean_text.startswith("```json"):
-            clean_text = clean_text[7:]
-        elif clean_text.startswith("```"):
-            clean_text = clean_text[3:]
-        if clean_text.endswith("```"):
-            clean_text = clean_text[:-3]
-            
-        return json.loads(clean_text.strip())
-    except json.JSONDecodeError:
-         return {"error": "Failed to parse AI response into JSON format."}
+    result = call_ai_with_fallback(prompt)
+
+    if isinstance(result, dict) and result.get("error"):
+        raise HTTPException(status_code=503, detail=result["error"])
+
+    if not isinstance(result, dict):
+        raise HTTPException(status_code=502, detail="Resume parser returned an invalid response format.")
+
+    return result

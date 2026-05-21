@@ -6,7 +6,8 @@ import google.generativeai as genai
 from dotenv import load_dotenv
 import key_manager
 
-load_dotenv()
+BASE_DIR = os.path.dirname(__file__)
+load_dotenv(os.path.join(BASE_DIR, ".env"))
 
 
 def _strip_codeblocks(text: str) -> str:
